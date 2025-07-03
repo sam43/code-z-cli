@@ -18,6 +18,7 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
 from core.user_config import save_model_choice, load_model_choice, clear_model_choice
 from core.model import fetch_webpage
+import time
 
 console = Console()
 
@@ -171,7 +172,7 @@ def print_welcome():
     console.print("🧾 [bold green]Ask natural language questions about functions or files[/bold green]")
     console.print("🧱 [bold green]Use triple backticks ``` to enter code blocks interactively[/bold green]")
     console.print("🚪 [bold green]Type 'exit', '/endit', or 'quit' anytime to leave[/bold green]")
-    console.print("[!] [cyan]To run a shell command - just add '!' before your shell command i.e: '!ls', '!pwd' etc.[/cyan]")
+    console.print("[!] [bold cyan]To run a shell command - just add '!' before your shell command i.e: '!ls', '!pwd' etc.[/bold cyan]")
     console.print("═══════════════════════════════════════════════════════\n")
 
 
@@ -418,8 +419,23 @@ def run():
             context_str = "\n".join([f"User: {item['user']}\nModel: {item['response']}" for item in prev_context])
             full_prompt = f"{system_prompt}\n\n{context_str}\nUser: {query}\nModel:"
         with console.status("[bold cyan]Preparing context...") as status:
-            status.update("[bold cyan]Querying model...")
-            response = model.query_ollama(full_prompt, selected_model)
+            # Simulate progress percentage while querying model
+            percent = 0
+            done = False
+            response = None
+            def run_model():
+                nonlocal response, done
+                response = model.query_ollama(full_prompt, selected_model)
+                done = True
+            import threading
+            t = threading.Thread(target=run_model)
+            t.start()
+            while not done:
+                percent = min(percent + 7, 99)  # Simulate progress
+                status.update(f"[bold cyan]Querying model... {percent}% (Press CTRL+C to stop)[/bold cyan]")
+                time.sleep(0.15)
+            t.join()
+            status.update("[bold cyan]Querying model... 100%")
             last_thinking = summarize_response(response)
         # Stream the model response
         console.print("[bold magenta]CodeZ:[/bold magenta]", end=" ")
