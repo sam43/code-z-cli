@@ -16,4 +16,3 @@ codez_cli.egg-info/
 dist/
 .pytest_cache
 vendor/
-.vscode/
