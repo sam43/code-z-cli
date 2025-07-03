@@ -168,6 +168,24 @@ def print_welcome():
 
 
 def run():
+    # Model selection at the start
+    from core import model as model_mod
+    models, err = model_mod.get_ollama_models()
+    if err:
+        console.print(f"[red]{err}[/red]")
+        return
+    if models:
+        console.print("[cyan]Available models:[/cyan] " + ", ".join(models))
+        selected_model = console.input("[bold blue]Enter model name (default: deepseek-r1:latest): [/bold blue]").strip()
+        if not selected_model:
+            selected_model = "deepseek-r1:latest"
+        if selected_model not in models:
+            console.print(f"[red]Model '{selected_model}' not found. Please add it using 'ollama pull {selected_model}' and restart.")
+            return
+    else:
+        console.print("[red]No models found in ollama. Please add a model using 'ollama pull <model>' and restart.")
+        return
+
     console.print("[bold green]Welcome to CodeZ CLI. Type '/endit' to end session.[/bold green]")
     ensure_session_dir()
     session = []
@@ -238,7 +256,7 @@ def run():
                     )
                 full_prompt = f"{system_prompt}\n\nFile content:\n{file_content}\n\nUser question: {user_q}"
                 with console.status("[bold cyan]Thinking deeply about the file and your question..."):
-                    response = model.query_ollama(full_prompt)
+                    response = model.query_ollama(full_prompt, selected_model)
                     concise = summarize_response(response)
                 console.print(Markdown(concise))
                 session.append({"user": user_q, "response": response, "file": str(Path(filepath).expanduser().resolve())})
@@ -294,7 +312,7 @@ def run():
             full_prompt = f"{system_prompt}\n\n{context_str}\nUser: {query}\nModel:"
         with console.status("[bold cyan]Preparing context...") as status:
             status.update("[bold cyan]Querying model...")
-            response = model.query_ollama(full_prompt)
+            response = model.query_ollama(full_prompt, selected_model)
             status.update("[bold cyan]Formatting output...")
             concise = summarize_response(response)
         console.print("[bold magenta]CodeZ:[/bold magenta]", end=" ")
