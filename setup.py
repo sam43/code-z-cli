@@ -14,7 +14,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "codechat=codechat.__main__:main"
+            "codez=codechat.__main__:main"
         ]
     },
     python_requires=">=3.8",
