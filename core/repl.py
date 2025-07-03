@@ -176,9 +176,13 @@ def print_welcome():
     console.print("═══════════════════════════════════════════════════════\n")
 
 
-def run():
-    # Model selection at the start
+def run(with_memory=True):
+    """
+    Main REPL loop. If with_memory is True, use contextual replies (session memory), else stateless mode.
+    """
     from core import model as model_mod
+    from core.llm_interactive import LLMInteractiveSession
+    # Model selection at the start
     models, err = model_mod.get_ollama_models()
     saved_model = load_model_choice()
     selected_model = None
@@ -212,11 +216,20 @@ def run():
     session = []
     session_file = os.path.join(SESSION_DIR, f"session_{os.getpid()}.json")
     prev_context = load_previous_session()
+    # Load all previous session turns for context
+    all_session_turns = load_all_sessions()
     if prev_context:
         console.print("[yellow]Loaded previous session context.[/yellow]")
     websearch_prompted = False
     prompt_session = PromptSession()
     last_thinking = None  # Store last thinking process
+
+    # Session memory setup
+    session_agent = LLMInteractiveSession(
+        model_name=selected_model,
+        persist=with_memory
+    )
+
     while True:
         with patch_stdout():
             query = prompt_session.prompt('>>> ', multiline=False, enable_history_search=True)
@@ -238,7 +251,47 @@ def run():
             continue
         # Handle all tool commands starting with '/'
         if query.strip().startswith("/"):
-            cmd = query.strip().split()
+            # Use regex to robustly match /read <filepath> (with or without quotes, and with spaces)
+            import re as _re
+            read_match = _re.match(r"^/read\s+(['\"]?)(.+?)\1\s*$", query.strip())
+            if read_match:
+                filepath = read_match.group(2)
+                if not filepath:
+                    console.print("[red]No file path provided.[/red]")
+                    continue
+                read_file_content(filepath)
+                console.print(f"[yellow]Finished reading {filepath}. Do you need any assistance with this file? (yes/no)[/yellow]")
+                followup = console.input("[bold blue]>>> [/bold blue]").strip().lower()
+                if followup in ["yes", "y"]:
+                    file_content = read_file_cache.get(str(Path(filepath).expanduser().resolve()), "")
+                    console.print("[green]You can now ask questions about this file. Your next question will use its content as context.[/green]")
+                    user_q = console.input("[bold blue]>>> [/bold blue]")
+                    system_prompt = (
+                        "You are a precise and honest code assistant. "
+                        "Read the provided resource carefully and answer only based on the given context. "
+                        "If you do not know, say so. Do not hallucinate or invent details. "
+                        "Align your answer strictly with the resource and question. "
+                    )
+                    if TOOLS.get("websearch"):
+                        system_prompt += (
+                            " If you need more information, you are allowed to use the websearch tool to search the web for relevant content. "
+                            "Use the websearch tool only if it is enabled by the user."
+                        )
+                    full_prompt = f"{system_prompt}\n\nFile content:\n{file_content}\n\nUser question: {user_q}"
+                    with console.status("[bold cyan]Thinking deeply about the file and your question..."):
+                        response = model.query_ollama(full_prompt, selected_model)
+                        last_thinking = summarize_response(response)
+                    # Stream the model response
+                    console.print("[bold magenta]CodeZ:[/bold magenta]", end=" ")
+                    if TOOLS.get("process"):
+                        print_llm_response_with_snippets(last_thinking)
+                    else:
+                        filtered = filter_thinking_block(last_thinking)
+                        print_llm_response_with_snippets(filtered)
+                    session.append({"user": user_q, "response": response, "file": str(Path(filepath).expanduser().resolve())})
+                continue
+            # Only split for other tool commands if not /read
+            cmd = shlex.split(query.strip())
             if cmd[0] == "/helpme":
                 console.print(HELP_TEXT)
                 continue
@@ -363,10 +416,10 @@ def run():
                 # Stream the model response
                 console.print("[bold magenta]CodeZ:[/bold magenta]", end=" ")
                 if TOOLS.get("process"):
-                    stream_response(last_thinking, console)
+                    print_llm_response_with_snippets(last_thinking)
                 else:
                     filtered = filter_thinking_block(last_thinking)
-                    stream_response(filtered, console)
+                    print_llm_response_with_snippets(filtered)
                 session.append({"user": user_q, "response": response, "file": str(Path(filepath).expanduser().resolve())})
             continue
         if query.strip().startswith("/load_session"):
@@ -389,6 +442,8 @@ def run():
                 TOOLS["websearch"] = True
                 console.print("[green]Websearch tool enabled for this session.[/green]")
             websearch_prompted = True
+        # Build context string from session memory (token-aware, not just last 20 turns)
+        context_str = session_agent.memory.get_context_prompt()
         if TOOLS["websearch"]:
             console.print("[cyan]Websearch tool is enabled. Searching online for your answer...[/cyan]")
             try:
@@ -401,7 +456,7 @@ def run():
                 web_content = f"[Web search failed: {e}]"
             context_str = "\n".join([f"User: {item['user']}\nModel: {item['response']}" for item in prev_context])
             system_prompt = (
-                "You are a precise and honest code assistant. "
+                "You are a precise and honest code assistant who uses reasoning to respond to user queries. "
                 "Read the provided resource carefully and answer only based on the given context. "
                 "If you do not know, say so. Do not hallucinate or invent details. "
                 "Align your answer strictly with the resource and question. "
@@ -410,13 +465,14 @@ def run():
             )
             full_prompt = f"{system_prompt}\n\n{context_str}\nWeb search result: {web_content}\nUser: {query}\nModel:"
         else:
+            # Update system prompt to be more coding-focused
             system_prompt = (
-                "You are a precise and honest code assistant. "
-                "Read the provided resource carefully and answer only based on the given context. "
+                "You are a precise and honest code assistant who uses reasoning to respond to user queries. "
+                "Focus on providing direct, practical coding solutions, code snippets, reasoning, and implementation details. "
+                "Avoid lengthy theoretical explanations unless specifically asked. "
                 "If you do not know, say so. Do not hallucinate or invent details. "
-                "Align your answer strictly with the resource and question. "
+                "Align your answer strictly with the resource, context, and question. "
             )
-            context_str = "\n".join([f"User: {item['user']}\nModel: {item['response']}" for item in prev_context])
             full_prompt = f"{system_prompt}\n\n{context_str}\nUser: {query}\nModel:"
         with console.status("[bold cyan]Preparing context...") as status:
             # Simulate progress percentage while querying model
@@ -440,11 +496,12 @@ def run():
         # Stream the model response
         console.print("[bold magenta]CodeZ:[/bold magenta]", end=" ")
         if TOOLS.get("process"):
-            stream_response(last_thinking, console)
+            print_llm_response_with_snippets(last_thinking)
         else:
             filtered = filter_thinking_block(last_thinking)
-            stream_response(filtered, console)
+            print_llm_response_with_snippets(filtered)
         session.append({"user": query, "response": response})
+        session_agent.memory.add_turn(query, response)  # Add the turn to memory
 
 # Place this near the top with other function definitions
 def filter_thinking_block(response: str) -> str:
@@ -452,3 +509,44 @@ def filter_thinking_block(response: str) -> str:
     import re
     pattern = r"(?s)<think>.*?</think>"
     return re.sub(pattern, '', response).strip()
+
+def load_all_sessions(session_dir=SESSION_DIR):
+    session_files = sorted(glob.glob(os.path.join(session_dir, "session_*.json")), reverse=True)
+    all_turns = []
+    for fname in session_files:
+        try:
+            with open(fname, "r") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    all_turns.extend(data)
+        except Exception:
+            continue
+    return all_turns
+
+def print_llm_response_with_snippets(response: str):
+    """
+    Print LLM response, rendering code snippets in a styled TUI panel.
+    Code blocks (```lang\n...\n```) are rendered with syntax highlighting and a border.
+    """
+    import re
+    from rich.panel import Panel
+    from rich.syntax import Syntax
+    from rich.markdown import Markdown
+    code_block_pattern = re.compile(r"```([a-zA-Z0-9]*)\n(.*?)```", re.DOTALL)
+    last_end = 0
+    for match in code_block_pattern.finditer(response):
+        # Print any text before the code block
+        if match.start() > last_end:
+            text = response[last_end:match.start()].strip()
+            if text:
+                console.print(Markdown(text))
+        lang = match.group(1) or "text"
+        code = match.group(2).strip()
+        syntax = Syntax(code, lang, theme="monokai", line_numbers=True, word_wrap=True)
+        console.print(Panel(syntax, title=f"Code Snippet ({lang})", border_style="bold green"))
+        last_end = match.end()
+    # Print any text after the last code block
+    if last_end < len(response):
+        text = response[last_end:].strip()
+        if text:
+            console.print(Markdown(text))
