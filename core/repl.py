@@ -3,6 +3,7 @@
 import json
 import os
 from core import model
+from core.stream_utils import stream_response
 from rich.console import Console
 from rich.syntax import Syntax
 from rich.panel import Panel
@@ -15,11 +16,14 @@ import shlex
 import re
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
+from core.user_config import save_model_choice, load_model_choice, clear_model_choice
 
 console = Console()
 
+# TOOLS update for /process
 TOOLS = {
-    "websearch": False
+    "websearch": False,
+    "process": False
 }
 
 HELP_TEXT = '''\
@@ -31,6 +35,8 @@ HELP_TEXT = '''\
 - [bold blue]/endit[/bold blue]: End the session and save conversation
 - [bold blue]/helpme[/bold blue]: Show this help message
 - [bold blue]/tools[/bold blue]: Enable or disable optional tools (e.g., websearch)
+- [bold blue]/models[/bold blue]: Show or update the selected model
+- [bold blue]'!'[/bold blue]: Run shell commands starting with '!' (e.g., !ls, !pwd)
 '''
 
 read_file_cache = {}
@@ -143,9 +149,9 @@ def multiline_code_input(prompt_session=None):
     in_block = False
     while True:
         if prompt_session:
-            line = prompt_session.prompt("[bold blue]... [/bold blue]", multiline=True)
+            line = prompt_session.prompt(">", multiline=True)
         else:
-            line = console.input("[bold blue]... [/bold blue]")
+            line = console.input(">")
         if line.strip() == "```":
             if in_block:
                 break
@@ -157,36 +163,48 @@ def multiline_code_input(prompt_session=None):
     return "\n".join(lines)
 
 def print_welcome():
-    print("\n")
-    print("🧠 Welcome to CodeZ CLI – Your Offline Code Companion")
-    print("═══════════════════════════════════════════════════════")
-    print("📂 Analyze code files and directories in Swift, Obj-C")
-    print("🧾 Ask natural language questions about functions or files")
-    print("🧱 Use triple backticks ``` to enter code blocks interactively")
-    print("🚪 Type 'exit', '/endit', or 'quit' anytime to leave")
-    print("═══════════════════════════════════════════════════════\n")
+    console.print("\n")
+    console.print("🧠 [bold green]Welcome to CodeZ CLI – Your Offline Code Companion[/bold green]")
+    console.print("═══════════════════════════════════════════════════════")
+    console.print("📂 [bold green]Analyze code files and directories in Swift, Obj-C[/bold green]")
+    console.print("🧾 [bold green]Ask natural language questions about functions or files[/bold green]")
+    console.print("🧱 [bold green]Use triple backticks ``` to enter code blocks interactively[/bold green]")
+    console.print("🚪 [bold green]Type 'exit', '/endit', or 'quit' anytime to leave[/bold green]")
+    console.print("═══════════════════════════════════════════════════════\n")
 
 
 def run():
     # Model selection at the start
     from core import model as model_mod
     models, err = model_mod.get_ollama_models()
+    saved_model = load_model_choice()
+    selected_model = None
     if err:
         console.print(f"[red]{err}[/red]")
         return
     if models:
-        console.print("[cyan]Available models:[/cyan] " + ", ".join(models))
-        selected_model = console.input("[bold blue]Enter model name (default: deepseek-r1:latest): [/bold blue]").strip()
-        if not selected_model:
-            selected_model = "deepseek-r1:latest"
-        if selected_model not in models:
-            console.print(f"[red]Model '{selected_model}' not found. Please add it using 'ollama pull {selected_model}' and restart.")
-            return
+        if saved_model and saved_model in models:
+            selected_model = saved_model
+            console.print(f"[green]Using saved model:[/green] {selected_model}")
+        else:
+            console.print("[cyan]Available models:[/cyan] " + ", ".join(models))
+            selected_model = console.input("[bold blue]Enter model name (default: deepseek-r1:latest): [/bold blue]").strip()
+            if not selected_model:
+                selected_model = "deepseek-r1:latest"
+            if selected_model not in models:
+                console.print(f"[red]Model '{selected_model}' not found. Please add it using 'ollama pull {selected_model}' and restart.")
+                return
+            # Ask to save model
+            save = console.input("[bold blue]Save this model for future sessions? (y/n): [/bold blue]").strip().lower()
+            if save in ["y", "yes"]:
+                save_model_choice(selected_model)
+                console.print(f"[green]Model '{selected_model}' saved for future sessions.[/green]")
     else:
         console.print("[red]No models found in ollama. Please add a model using 'ollama pull <model>' and restart.")
         return
 
-    console.print("[bold green]Welcome to CodeZ CLI. Type '/endit' to end session.[/bold green]")
+    # console.print("[bold green]Welcome to CodeZ CLI. Type '/endit' to end session.[/bold green]")
+    print_welcome()
     ensure_session_dir()
     session = []
     session_file = os.path.join(SESSION_DIR, f"session_{os.getpid()}.json")
@@ -195,9 +213,61 @@ def run():
         console.print("[yellow]Loaded previous session context.[/yellow]")
     websearch_prompted = False
     prompt_session = PromptSession()
+    last_thinking = None  # Store last thinking process
     while True:
         with patch_stdout():
             query = prompt_session.prompt('>>> ', multiline=False, enable_history_search=True)
+        # Handle all tool commands starting with '/'
+        if query.strip().startswith("/"):
+            cmd = query.strip().split()
+            if cmd[0] == "/helpme":
+                console.print(HELP_TEXT)
+                continue
+            if cmd[0] == "/tools":
+                show_tools()
+                continue
+            if cmd[0] == "/model":
+                # /model -u <current_model> <new_model>
+                if len(cmd) >= 4 and cmd[1] in ["-u", "--update"]:
+                    current_model = cmd[2]
+                    new_model = cmd[3]
+                    models, err = model_mod.get_ollama_models()
+                    if err:
+                        console.print(f"[red]{err}[/red]")
+                        continue
+                    if new_model not in models:
+                        console.print(f"[red]Model '{new_model}' not found. Please add it using 'ollama pull {new_model}' and try again.")
+                        continue
+                    save_model_choice(new_model)
+                    console.print(f"[green]Model updated from '{current_model}' to '{new_model}'.[/green]")
+                    selected_model = new_model
+                else:
+                    # Show current and available models
+                    models, err = model_mod.get_ollama_models()
+                    if err:
+                        console.print(f"[red]{err}[/red]")
+                        continue
+                    console.print(f"[cyan]Current model:[/cyan] {selected_model}")
+                    console.print("[cyan]Available models:[/cyan] " + ", ".join(models))
+                continue
+            if cmd[0] == "/process":
+                if last_thinking:
+                    console.print("[bold blue]--- Thought Process ---[/bold blue]")
+                    from core.stream_utils import stream_thinking
+                    stream_thinking(last_thinking, console)
+                    console.print("[bold blue]----------------------[/bold blue]")
+                else:
+                    console.print("[yellow]No thought process available for the last response.[/yellow]")
+                continue
+            # Add more tool commands here as needed
+            if cmd[0] == "/forget_session":
+                prev_context = []
+                console.print("[yellow]Previous session context forgotten. You are now starting fresh.[/yellow]")
+                continue
+            # Unknown tool command
+            console.print(f"[red]Unknown tool command: {cmd[0]}")
+            continue
+        # All non-tool commands below here
         if query.strip() == "```":
             code = multiline_code_input(prompt_session)
             print_code_snippet(code)
@@ -257,8 +327,10 @@ def run():
                 full_prompt = f"{system_prompt}\n\nFile content:\n{file_content}\n\nUser question: {user_q}"
                 with console.status("[bold cyan]Thinking deeply about the file and your question..."):
                     response = model.query_ollama(full_prompt, selected_model)
-                    concise = summarize_response(response)
-                console.print(Markdown(concise))
+                    last_thinking = summarize_response(response)
+                # Stream the model response
+                console.print("[bold magenta]CodeZ:[/bold magenta]", end=" ")
+                stream_response(last_thinking, console)
                 session.append({"user": user_q, "response": response, "file": str(Path(filepath).expanduser().resolve())})
             continue
         if query.strip().startswith("/load_session"):
@@ -313,8 +385,8 @@ def run():
         with console.status("[bold cyan]Preparing context...") as status:
             status.update("[bold cyan]Querying model...")
             response = model.query_ollama(full_prompt, selected_model)
-            status.update("[bold cyan]Formatting output...")
-            concise = summarize_response(response)
+            last_thinking = summarize_response(response)
+        # Stream the model response
         console.print("[bold magenta]CodeZ:[/bold magenta]", end=" ")
-        console.print(Markdown(concise))
+        stream_response(last_thinking, console)
         session.append({"user": query, "response": response})
