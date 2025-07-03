@@ -297,6 +297,6 @@ def run():
             response = model.query_ollama(full_prompt)
             status.update("[bold cyan]Formatting output...")
             concise = summarize_response(response)
-        console.print("[bold magenta]System:[/bold magenta]", end=" ")
+        console.print("[bold magenta]CodeZ:[/bold magenta]", end=" ")
         console.print(Markdown(concise))
         session.append({"user": query, "response": response})

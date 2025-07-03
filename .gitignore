@@ -1,4 +1,5 @@
 venv/
+codechat/venv/
 sessions/
 core/__pycache__/
 tree-sitter-c
