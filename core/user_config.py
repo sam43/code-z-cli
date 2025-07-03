@@ -1,10 +1,12 @@
 import os
 import json
+from platformdirs import user_config_dir
 
-CONFIG_PATH = os.path.expanduser("~/.codez_config.json")
+CONFIG_PATH = os.path.join(user_config_dir("codez"), "config.json")
 
 def save_model_choice(model_name):
     config = {}
+    os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH, "r") as f:
             try:
