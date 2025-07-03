@@ -114,6 +114,26 @@ codez --with-memory # (default) Use contextual memory for better answers
 
 ---
 
+## Contextual Memory & Token-Aware History
+
+CodeZ CLI supports robust, token-aware context memory for LLM interactions. The assistant remembers as much of your chat history as fits within a configurable token budget (default: 3000 tokens). This ensures the model answers based on prior conversation, without exceeding the LLM's input limit.
+
+- **Token Budget:** The context window is managed by a token budget, not just a fixed number of turns. Oldest turns are truncated automatically if needed.
+- **Configurable:** You can set the token budget via the `CODEZ_MAX_TOKEN_BUDGET` environment variable or by editing the config.
+- **Persistence:** By default, session memory is stored in a lightweight SQLite database in the `sessions/` directory. You can disable memory (stateless mode) with a CLI flag.
+- **CLI Flags:**
+  - `--with-memory` (default): Enable contextual replies (session memory)
+  - `--no-memory`: Disable contextual replies (stateless, no chat history)
+
+### Example usage
+
+```bash
+codez --no-memory   # Run in stateless mode (no chat history)
+codez --with-memory # (default) Use contextual memory for better answers
+```
+
+---
+
 ## Requirements
 - Python 3.8+
 - [Ollama](https://ollama.com/) (for local LLM)
