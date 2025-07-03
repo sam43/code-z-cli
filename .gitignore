@@ -14,7 +14,7 @@ codechat/domain/__pycache__
 codechat/data/__pycache__
 codechat/interface/__pycache__
 tests/__pycache__
-codez_cli.egg-info/
 dist/
+codez_cli.egg-info/
 .pytest_cache
 vendor/
