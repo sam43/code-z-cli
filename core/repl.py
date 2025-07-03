@@ -17,6 +17,7 @@ import re
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
 from core.user_config import save_model_choice, load_model_choice, clear_model_choice
+from core.model import fetch_webpage
 
 console = Console()
 
@@ -170,6 +171,7 @@ def print_welcome():
     console.print("🧾 [bold green]Ask natural language questions about functions or files[/bold green]")
     console.print("🧱 [bold green]Use triple backticks ``` to enter code blocks interactively[/bold green]")
     console.print("🚪 [bold green]Type 'exit', '/endit', or 'quit' anytime to leave[/bold green]")
+    console.print("[!] [cyan]To run a shell command - just add '!' before your shell command i.e: '!ls', '!pwd' etc.[/cyan]")
     console.print("═══════════════════════════════════════════════════════\n")
 
 
@@ -217,6 +219,22 @@ def run():
     while True:
         with patch_stdout():
             query = prompt_session.prompt('>>> ', multiline=False, enable_history_search=True)
+        # Handle shell commands starting with '!'
+        if query.strip().startswith("!"):
+            import subprocess
+            shell_cmd = query.strip()[1:]
+            if not shell_cmd:
+                console.print("[red]No shell command provided after '!'.[/red]")
+                continue
+            try:
+                result = subprocess.run(shell_cmd, shell=True, capture_output=True, text=True)
+                if result.stdout:
+                    console.print(f"[green]{result.stdout}[/green]", end="")
+                if result.stderr:
+                    console.print(f"[red]{result.stderr}[/red]", end="")
+            except Exception as e:
+                console.print(f"[red]Shell command error:[/red] {e}")
+            continue
         # Handle all tool commands starting with '/'
         if query.strip().startswith("/"):
             cmd = query.strip().split()
@@ -266,6 +284,19 @@ def run():
                 continue
             # Unknown tool command
             console.print(f"[red]Unknown tool command: {cmd[0]}")
+            continue
+        # Handle shell commands starting with '!'
+        if query.strip().startswith("!"):
+            shell_cmd = query.strip()[1:]
+            import subprocess
+            try:
+                result = subprocess.run(shell_cmd, shell=True, capture_output=True, text=True)
+                if result.stdout:
+                    console.print(f"[green]{result.stdout.strip()}[/green]")
+                if result.stderr:
+                    console.print(f"[red]{result.stderr.strip()}[/red]")
+            except Exception as e:
+                console.print(f"[red]Shell command failed: {e}[/red]")
             continue
         # All non-tool commands below here
         if query.strip() == "```":
@@ -330,7 +361,11 @@ def run():
                     last_thinking = summarize_response(response)
                 # Stream the model response
                 console.print("[bold magenta]CodeZ:[/bold magenta]", end=" ")
-                stream_response(last_thinking, console)
+                if TOOLS.get("process"):
+                    stream_response(last_thinking, console)
+                else:
+                    filtered = filter_thinking_block(last_thinking)
+                    stream_response(filtered, console)
                 session.append({"user": user_q, "response": response, "file": str(Path(filepath).expanduser().resolve())})
             continue
         if query.strip().startswith("/load_session"):
@@ -388,5 +423,16 @@ def run():
             last_thinking = summarize_response(response)
         # Stream the model response
         console.print("[bold magenta]CodeZ:[/bold magenta]", end=" ")
-        stream_response(last_thinking, console)
+        if TOOLS.get("process"):
+            stream_response(last_thinking, console)
+        else:
+            filtered = filter_thinking_block(last_thinking)
+            stream_response(filtered, console)
         session.append({"user": query, "response": response})
+
+# Place this near the top with other function definitions
+def filter_thinking_block(response: str) -> str:
+    """Remove the <think>...</think> block from the LLM response if present."""
+    import re
+    pattern = r"(?s)<think>.*?</think>"
+    return re.sub(pattern, '', response).strip()

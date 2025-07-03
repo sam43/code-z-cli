@@ -17,7 +17,7 @@ def stream_response(text, console=None, delay=0.01):
 
 def stream_thinking(text, console=None, delay=0.001):
     """Stream text in light gray color for thought process."""
-    style = "grey70"  # Rich color for light gray
+    style = "grey20"  # Rich color for light gray
     for char in text:
         if console:
             console.print(char, end="", style=style, soft_wrap=True, highlight=False)
