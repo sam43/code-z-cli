@@ -1,4 +1,4 @@
-# CodeChat CLI
+# CodeZ CLI
 
 A conversational code assistant for your terminal, powered by local LLMs and enhanced with Rich terminal visuals.
 
@@ -36,18 +36,18 @@ Follow instructions at https://ollama.com/download to install Ollama for your pl
 
 ### Start the CLI
 ```bash
-python -m codechat.core.repl
+python -m core.repl
 ```
 
 ### Commands
 - **Ask questions**: Type your question and press Enter.
 - **Read a file**: `/read <filepath>`
-- **End session**: `/endit` (saves conversation to `/user-sessions/`)
+- **End session**: `/endit` (saves conversation to `/sessions/`)
 - **/clear** or **clr**: Clear the terminal screen for more space
 
 ### Example
 ```bash
->>> How do I write a Python function?
+>>> How do I write a Swift function?
 >>> /read ./core/model.py
 >>> /endit
 ```
@@ -56,16 +56,16 @@ python -m codechat.core.repl
 
 ## Standalone Usage
 
-After installing, you can launch CodeChat CLI from anywhere:
+After installing, you can launch the CLI from anywhere (if installed as a package with a proper entry point):
 
 ```bash
-codechat
+codez
 ```
 
-Or, if you prefer to run as a Python module:
+Or, if you prefer to run as a Python module from the project root (no codechat/CodeZ folder):
 
 ```bash
-python -m codechat
+python -m core.repl
 ```
 
 ## Installation (as a package)
@@ -74,17 +74,17 @@ Clone the repository and install with pip:
 
 ```bash
 git clone <your-repo-url>
-cd code-chat-cli
+cd code-z-cli
 pip install .
 ```
 
-This will install all dependencies and add the `codechat` command to your PATH.
+This will install all dependencies and add the `CodeZ` command to your PATH.
 
 ---
 
 ## Session Context
 - Previous sessions are automatically loaded as context for better answers.
-- Session files are stored in `/user-sessions/`.
+- Session files are stored in `/sessions/`.
 
 ---
 
@@ -101,4 +101,32 @@ Pull requests and issues are welcome!
 ---
 
 ## License
-MIT
+Apache 2.0
+
+---
+
+## Standalone Usage
+
+After installing, you can launch the CLI from anywhere (if installed as a package with a proper entry point):
+
+```bash
+codez
+```
+
+Or, if you prefer to run as a Python module from the project root (no codechat/CodeZ folder):
+
+```bash
+python -m core.repl
+```
+
+### Installation (as a package)
+
+Clone the repository and install with pip:
+
+```bash
+git clone <your-repo-url>
+cd code-z-cli
+pip install .
+```
+
+This will install all dependencies and add the `codez` command to your PATH.
