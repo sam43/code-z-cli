@@ -13,6 +13,7 @@ pip==25.1.1
 pydantic==2.11.7
 pydantic_core==2.33.2
 Pygments==2.19.2
+prompt-toolkit>=3.0.0
 rich==14.0.0
 setuptools==80.9.0
 shellingham==1.5.4
@@ -21,4 +22,3 @@ tree_sitter==0.20.1
 typer==0.16.0
 typing_extensions==4.14.0
 typing-inspection==0.4.1
-prompt_toolkit==3.0.51
