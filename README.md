@@ -20,12 +20,19 @@ git clone <your-repo-url>
 cd code-chat-cli
 ```
 
-### 2. Install Python Dependencies
+### 2. Install as a Package (Recommended)
+From the project root (the folder containing the `codechat` directory and `setup.py`):
 ```bash
-pip install -r requirements.txt
-# Or, manually:
-pip install rich
+pip install .
 ```
+
+This will install all dependencies and add the `codez` command to your PATH.
+
+If you get `command not found: codez`, ensure your Python scripts directory is in your PATH:
+```bash
+export PATH="$(python3 -m site --user-base)/bin:$PATH"
+```
+Add this line to your `~/.bashrc`, `~/.zshrc`, or `~/.profile` for persistence.
 
 ### 3. Install Ollama (for local LLM)
 Follow instructions at https://ollama.com/download to install Ollama for your platform.
@@ -36,7 +43,12 @@ Follow instructions at https://ollama.com/download to install Ollama for your pl
 
 ### Start the CLI
 ```bash
-python -m core.repl
+codez
+```
+
+Or, if you prefer to run as a Python module from the project root:
+```bash
+python -m codechat.core.repl
 ```
 
 ### Commands
@@ -51,34 +63,6 @@ python -m core.repl
 >>> /read ./core/model.py
 >>> /endit
 ```
-
----
-
-## Standalone Usage
-
-After installing, you can launch the CLI from anywhere (if installed as a package with a proper entry point):
-
-```bash
-codez
-```
-
-Or, if you prefer to run as a Python module from the project root (no codechat/CodeZ folder):
-
-```bash
-python -m core.repl
-```
-
-## Installation (as a package)
-
-Clone the repository and install with pip:
-
-```bash
-git clone <your-repo-url>
-cd code-z-cli
-pip install .
-```
-
-This will install all dependencies and add the `CodeZ` command to your PATH.
 
 ---
 
@@ -105,28 +89,24 @@ Apache 2.0
 
 ---
 
-## Standalone Usage
+## Project Structure (after cleanup)
 
-After installing, you can launch the CLI from anywhere (if installed as a package with a proper entry point):
+Your project root should look like this:
 
-```bash
-codez
+```
+code-chat-cli/
+├── codechat/
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── cli.py
+│   ├── core/
+│   │   └── ...
+│   └── README.md
+├── setup.py
+├── README.md
+└── requirements.txt
 ```
 
-Or, if you prefer to run as a Python module from the project root (no codechat/CodeZ folder):
-
-```bash
-python -m core.repl
-```
-
-### Installation (as a package)
-
-Clone the repository and install with pip:
-
-```bash
-git clone <your-repo-url>
-cd code-z-cli
-pip install .
-```
-
-This will install all dependencies and add the `codez` command to your PATH.
+- Do NOT include `venv/`, `setup.py` or `requirements.txt` inside `codechat/`.
+- Do NOT include `sessions/` or `build/` in the distributed package.
+- Only keep `tree-sitter-*` and `vendor/` if you need them at runtime (otherwise, move or ignore for packaging).
