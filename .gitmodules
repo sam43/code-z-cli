@@ -1,0 +1,6 @@
+[submodule "tree-sitter-c"]
+	path = tree-sitter-c
+	url = https://github.com/sam43/tree-sitter-c
+[submodule "tree-sitter-swift"]
+	path = tree-sitter-swift
+	url = https://github.com/sam43/tree-sitter-swift

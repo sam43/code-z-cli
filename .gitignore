@@ -1,0 +1,5 @@
+venv/
+sessions/
+core/__pycache__/
+tree-sitter-c
+tree-sitter-swift
