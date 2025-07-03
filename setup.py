@@ -1,11 +1,13 @@
 from setuptools import setup, find_packages
-from pathlib import Path
+
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
 
 setup(
     name='codez-cli',
     version='0.1.0',
     description='CodeZ CLI – Your Offline Code Companion',
-    long_description=Path(__file__).parent.joinpath('README.md').read_text(encoding='utf-8'),
+    long_description=long_description,
     long_description_content_type='text/markdown',
     author='Your Name',
     author_email='your.email@example.com',
