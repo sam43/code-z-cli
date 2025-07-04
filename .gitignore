@@ -17,3 +17,4 @@ dist/
 codez_cli.egg-info/
 vendor/
 .pytest_cache/
+.vscode/
