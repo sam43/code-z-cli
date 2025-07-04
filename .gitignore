@@ -1,6 +1,11 @@
 venv/
-codechat/venv/
 sessions/
 core/__pycache__/
 tree-sitter-c
 tree-sitter-swift
+codechat/__pycache__
+codechat/events/__pycache__
+codechat/domain/__pycache__
+codechat/data/__pycache__
+codechat/interface/__pycache__
+tests/__pycache__
