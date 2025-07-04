@@ -21,7 +21,7 @@ A conversational code assistant for your terminal, powered by local LLMs and enh
 ### 1. Install from PyPI (Recommended)
 
 ```bash
-pip install codez
+pip install codez-cli
 ```
 
 If you are on macOS and see an error about an externally managed environment, use a virtual environment:
