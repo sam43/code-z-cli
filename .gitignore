@@ -9,3 +9,6 @@ codechat/domain/__pycache__
 codechat/data/__pycache__
 codechat/interface/__pycache__
 tests/__pycache__
+dist/
+codez_cli.egg-info/
+vendor/
