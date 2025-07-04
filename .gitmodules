@@ -1,9 +1,9 @@
 [submodule "tree-sitter-c"]
 	path = vendor/tree-sitter-c
 	url = https://github.com/tree-sitter/tree-sitter-c
-[submodule "swift-tree-sitter"]
-	path = vendor/swift-tree-sitter
-	url = https://github.com/tree-sitter/swift-tree-sitter
+[submodule "tree-sitter-swift"]
+	path = vendor/tree-sitter-swift
+	url = https://github.com/tree-sitter/tree-sitter-swift
 [submodule "py-tree-sitter"]
 	path = vendor/py-tree-sitter
 	url = https://github.com/tree-sitter/py-tree-sitter
@@ -25,9 +25,6 @@
 [submodule "tree-sitter-typescript"]
 	path = vendor/tree-sitter-typescript
 	url = https://github.com/tree-sitter/tree-sitter-typescript
-[submodule "vendor/swift-tree-sitter"]
-	path = vendor/swift-tree-sitter
-	url = https://github.com/tree-sitter/swift-tree-sitter
 [submodule "vendor/py-tree-sitter"]
 	path = vendor/py-tree-sitter
 	url = https://github.com/tree-sitter/py-tree-sitter

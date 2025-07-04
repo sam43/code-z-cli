@@ -9,10 +9,10 @@ setup(
     description='CodeZ CLI – Your Offline Code Companion',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    author='Your Name',
-    author_email='your.email@example.com',
-    url='https://github.com/yourusername/codez-cli',
-    license='MIT',
+    author='Sadat Sayem',
+    author_email='scode43@gmail.com',
+    url='https://github.com/sam43/code-z-cli',
+    license='Apache 2.0',
     packages=find_packages(),
     install_requires=[
         'rich',
@@ -21,17 +21,18 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'codez = core.repl:run',
+            'codez=codechat.__main__:main',
         ],
     },
     include_package_data=True,
     python_requires='>=3.8',
     classifiers=[
         'Programming Language :: Python :: 3',
-        'License :: OSI Approved :: MIT License',
+        'License :: OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
         'Intended Audience :: Developers',
         'Environment :: Console',
         'Topic :: Software Development :: Libraries :: Application Frameworks',
     ],
+    zip_safe=False,
 )
