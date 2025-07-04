@@ -6,6 +6,8 @@ codechat/tree-sitter-swift
 grammars/
 tree-sitter-c
 tree-sitter-swift
+codechat/tree-sitter-c
+codechat/tree-sitter-swift
 codechat/__pycache__
 codechat/events/__pycache__
 codechat/domain/__pycache__
