@@ -49,7 +49,13 @@ codez
 Or, if you prefer to run as a Python module from the project root:
 
 ```bash
-python -m core.repl
+python -m codechat
+```
+
+Or, you can also run directly:
+
+```bash
+python __main__.py
 ```
 
 ### Common Commands
@@ -158,3 +164,14 @@ code-z-cli/
 - Do NOT include `venv/` in the distributed package.
 - Only keep `tree-sitter-*` and `vendor/` if you need them at runtime.
 - `sessions/` and `build/` are for runtime and should not be packaged for PyPI.
+
+---
+
+## Testing
+
+To run all unit tests (requires pytest):
+
+```bash
+pip install pytest
+pytest
+```

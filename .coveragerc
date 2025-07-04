@@ -1,0 +1,5 @@
+[run]
+omit =
+    codechat/tree-sitter-c/*
+    codechat/tree-sitter-swift/*
+    codechat/vendor/*
