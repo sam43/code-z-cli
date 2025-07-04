@@ -1,18 +1,14 @@
 from setuptools import setup, find_packages
+from pathlib import Path
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name='codez-cli',
-    version='0.1.0',
-    description='CodeZ CLI – Your Offline Code Companion',
-    long_description=long_description,
-    long_description_content_type='text/markdown',
-    author='Your Name',
-    author_email='your.email@example.com',
-    url='https://github.com/yourusername/codez-cli',
-    license='MIT',
+    name="codechat-cli",
+    version="1.0.0",
+    description="Interactive AI-powered code assistant for your terminal.",
+    author="Your Name",
     packages=find_packages(),
     install_requires=[
         'rich',
