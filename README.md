@@ -136,6 +136,10 @@ To run all unit tests (requires pytest):
 ```bash
 pip install pytest
 pytest
+or
+PYTHONPATH=. pytest
+or specific test file
+PYTHONPATH=. pytest -s tests/test_llm_interactive.py
 ```
 
 ---

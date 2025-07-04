@@ -230,9 +230,52 @@ def run(with_memory=True):
         persist=with_memory
     )
 
+    # Add: Paste code snippet interactively
+    def paste_code_snippet():
+        console.print("[cyan]Paste your code snippet below. Type 'END' on a new line to finish.[/cyan]")
+        lines = []
+        while True:
+            line = input()
+            if line.strip() == 'END':
+                break
+            lines.append(line)
+        code = '\n'.join(lines)
+        return code
+
+    import re
+    def clean_code_snippet(code: str) -> str:
+        """Remove line numbers from pasted code."""
+        lines = code.splitlines()
+        cleaned = []
+        for line in lines:
+            # Remove leading line numbers (e.g., ' 1 |', '12 ', '003:')
+            cleaned.append(re.sub(r"^\s*\d+[:|\s]", "", line))
+        return "\n".join(cleaned)
+
+    # New paste mode for code blocks
+    def paste_code_snippet_block():
+        console.print("[cyan]Paste your code below. Type 'END' on a new line to finish.[/cyan]")
+        lines = []
+        while True:
+            line = input()
+            if line.strip() == 'END':
+                break
+            lines.append(line)
+        code = '\n'.join(lines)
+        return clean_code_snippet(code)
+
     while True:
         with patch_stdout():
             query = prompt_session.prompt('>>> ', multiline=False, enable_history_search=True)
+        # Detect code block start
+        if query.strip() == '```':
+            code = paste_code_snippet_block()
+            console.print("[green]Code block pasted. Continue typing your question or press Enter to send.[/green]")
+            followup = prompt_session.prompt('>>> ', multiline=False, enable_history_search=True)
+            if followup.strip():
+                query = f"Here is my code:\n{code}\n{followup.strip()}"
+            else:
+                query = f"Here is my code:\n{code}"
         # Handle shell commands starting with '!'
         if query.strip().startswith("!"):
             import subprocess
@@ -283,11 +326,11 @@ def run(with_memory=True):
                         last_thinking = summarize_response(response)
                     # Stream the model response
                     console.print("[bold magenta]CodeZ:[/bold magenta]", end=" ")
-                    if TOOLS.get("process"):
-                        print_llm_response_with_snippets(last_thinking)
-                    else:
-                        filtered = filter_thinking_block(last_thinking)
-                        print_llm_response_with_snippets(filtered)
+                    # Stream the model response character by character
+                    from core.stream_utils import stream_response
+                    stream_response(last_thinking, console=console, delay=0.01)
+                    # Optionally, for code snippets, you can still use print_llm_response_with_snippets if needed
+                    # print_llm_response_with_snippets(last_thinking)
                     session.append({"user": user_q, "response": response, "file": str(Path(filepath).expanduser().resolve())})
                 continue
             # Only split for other tool commands if not /read
@@ -415,11 +458,11 @@ def run(with_memory=True):
                     last_thinking = summarize_response(response)
                 # Stream the model response
                 console.print("[bold magenta]CodeZ:[/bold magenta]", end=" ")
-                if TOOLS.get("process"):
-                    print_llm_response_with_snippets(last_thinking)
-                else:
-                    filtered = filter_thinking_block(last_thinking)
-                    print_llm_response_with_snippets(filtered)
+                # Stream the model response character by character
+                from core.stream_utils import stream_response
+                stream_response(last_thinking, console=console, delay=0.01)
+                # Optionally, for code snippets, you can still use print_llm_response_with_snippets if needed
+                # print_llm_response_with_snippets(last_thinking)
                 session.append({"user": user_q, "response": response, "file": str(Path(filepath).expanduser().resolve())})
             continue
         if query.strip().startswith("/load_session"):
