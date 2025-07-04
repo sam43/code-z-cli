@@ -13,6 +13,14 @@ A conversational code assistant for your terminal, powered by local LLMs and enh
 - Rich terminal output: Beautiful markdown, code, and panels
 - Shell command execution with '!'
 - Optional websearch tool
+- Conversational REPL with context-aware responses
+- Instant interruption (ESC) and responsive UI
+- Auto-completion for commands and file paths
+- Session management: Save and resume conversations
+- File reading: Display code/files with syntax highlighting
+- Rich terminal output: Beautiful markdown, code, and panels
+- Shell command execution with '!'
+- Optional websearch tool
 
 ---
 
@@ -29,7 +37,7 @@ If you are on macOS and see an error about an externally managed environment, us
 ```bash
 python3 -m venv ~/codez-venv
 source ~/codez-venv/bin/activate
-pip install codez
+pip install codez-cli
 ```
 
 ### 2. Install Ollama (for local LLM)
@@ -114,23 +122,14 @@ codez --with-memory # (default) Use contextual memory for better answers
 
 ---
 
-## Contextual Memory & Token-Aware History
+## Configuration File Location
 
-CodeZ CLI supports robust, token-aware context memory for LLM interactions. The assistant remembers as much of your chat history as fits within a configurable token budget (default: 3000 tokens). This ensures the model answers based on prior conversation, without exceeding the LLM's input limit.
+CodeZ CLI stores its configuration in a user-specific directory using the [platformdirs](https://pypi.org/project/platformdirs/) standard. The config file is typically located at:
 
-- **Token Budget:** The context window is managed by a token budget, not just a fixed number of turns. Oldest turns are truncated automatically if needed.
-- **Configurable:** You can set the token budget via the `CODEZ_MAX_TOKEN_BUDGET` environment variable or by editing the config.
-- **Persistence:** By default, session memory is stored in a lightweight SQLite database in the `sessions/` directory. You can disable memory (stateless mode) with a CLI flag.
-- **CLI Flags:**
-  - `--with-memory` (default): Enable contextual replies (session memory)
-  - `--no-memory`: Disable contextual replies (stateless, no chat history)
+- **macOS/Linux:** `~/.config/codez/config.json`
+- **Windows:** `%APPDATA%\codez\config.json`
 
-### Example usage
-
-```bash
-codez --no-memory   # Run in stateless mode (no chat history)
-codez --with-memory # (default) Use contextual memory for better answers
-```
+You do not need to manually create or edit this file; it is managed automatically when you select or change models.
 
 ---
 
