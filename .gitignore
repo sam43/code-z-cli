@@ -13,7 +13,11 @@ codechat/events/__pycache__
 codechat/domain/__pycache__
 codechat/data/__pycache__
 codechat/interface/__pycache__
-tests/__pycache__
+tests/core/__pycache__
+tests/interface/__pycache__
+tests/data/__pycache__
+tests/domain/__pycache__
+tests/events/__pycache__
 dist/
 codez_cli.egg-info/
 vendor/
