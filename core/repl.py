@@ -20,6 +20,8 @@ from core.user_config import save_model_choice, load_model_choice, clear_model_c
 from core.model import fetch_webpage
 import time
 from datetime import datetime
+from rich.text import Text
+from pyfiglet import Figlet
 
 console = Console()
 
@@ -206,6 +208,19 @@ Enter your code snippet below.
 import random
 
 def print_welcome():
+    # Generate ASCII art title
+    try:
+        f = Figlet(font='slant') # 'slant' or 'standard' are good choices
+        # For very wide terminals, other fonts like 'banner' might be too wide
+        # Default figlet font is 'standard' if 'slant' is not available, though it usually is.
+        ascii_art_title = f.renderText("CodeZ CLI")
+        console.print(f"[bold bright_magenta]{ascii_art_title}[/bold bright_magenta]", justify="center")
+    except Exception as e:
+        # Fallback if figlet fails for any reason (e.g. font not found, though unlikely for standard ones)
+        console.print("[bold bright_magenta]CodeZ CLI[/bold bright_magenta]", justify="center", style="italic")
+        print_error(f"Could not render Figlet title: {e}", "Display Warning")
+
+
     tips = [
         "Use `/read <filepath>` to load a file's content into the conversation.",
         "Type `!ls` or any other shell command directly into the prompt!",
@@ -217,8 +232,9 @@ def print_welcome():
     ]
     selected_tip = random.choice(tips)
 
+    # Adjusted message slightly as main title is now ASCII art
     welcome_message = f"""\
-🧠 [bold green]Welcome to CodeZ CLI – Your Offline Code Companion[/bold green]
+🧠 [bold green]Welcome – Your Offline Code Companion[/bold green]
 
 Key Features:
 *   📂 Analyze code ([bold]Swift, Obj-C[/bold] via tree-sitter, other languages generally)
@@ -231,7 +247,12 @@ Key Features:
 
 Type `/helpme` for a full list of commands.
 """
-    console.print(Panel(Markdown(welcome_message), title="[bold bright_magenta]CodeZ CLI[/bold bright_magenta]", border_style="bold blue", expand=False))
+    # Using Text.from_markup directly to ensure Rich tags are parsed.
+    # This will render Rich tags but not Markdown syntax like lists.
+    # from rich.text import Text # Already imported at top level
+    welcome_renderable = Text.from_markup(welcome_message)
+    # Changed panel title to be more subtle as main title is now ASCII art
+    console.print(Panel(welcome_renderable, title="[dim]Your AI Coding Assistant[/dim]", border_style="blue", expand=False, padding=(1,2)))
     console.print() # Add a newline after the panel
 
 
