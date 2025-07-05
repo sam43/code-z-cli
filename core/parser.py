@@ -1,55 +1,17 @@
 # core/parser.py
 import os
 from tree_sitter import Language, Parser
-import os
+
+# Determine the project root directory from the location of parser.py
+# parser.py is in core/, so project_root is one level up.
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+IOS_LANG_SO_PATH = os.path.join(PROJECT_ROOT, 'build', 'ios_lang.so')
 
 # Map language names to their .so grammar files and tree-sitter language names
 LANGUAGES = {
-#     "swift": IOS_LANG_SO_PATH,
-#     "objc": IOS_LANG_SO_PATH,
-# }
-    "swift":  ("./build/ios_lang.so", "swift"),
-    "objc":   ("./build/ios_lang.so", "objc"),
-    "java":   ("./build/java_lang.so", "java"),
-    "kt":     ("./build/kotlin_lang.so", "kotlin"),
-    "kotlin": ("./build/kotlin_lang.so", "kotlin"),
-    "py":     ("./build/python_lang.so", "python"),
-    "python": ("./build/python_lang.so", "python"),
-    "js":     ("./build/javascript_lang.so", "javascript"),
-    "javascript": ("./build/javascript_lang.so", "javascript"),
-    "ts":     ("./build/typescript_lang.so", "typescript"),
-    "typescript": ("./build/typescript_lang.so", "typescript"),
-    "go":     ("./build/go_lang.so", "go"),
+    "swift": IOS_LANG_SO_PATH,
+    "objc": IOS_LANG_SO_PATH,
 }
-
-# Node types for function definitions in each language
-FUNCTION_NODE_TYPES = {
-    "swift": ["function_declaration"],
-    "objc": ["function_definition", "method_definition"],
-    "java": ["method_declaration"],
-    "kotlin": ["function_declaration"],
-    "python": ["function_definition"],
-    "javascript": ["function_declaration", "method_definition"],
-    "typescript": ["function_declaration", "method_signature"],
-    "go": ["function_declaration", "method_declaration"],
-}
-
-def detect_language_from_filename(filename: str) -> str:
-    """
-    Guess the programming language from the file extension.
-    """
-    ext = os.path.splitext(filename)[1].lower()
-    ext_map = {
-        ".swift": "swift",
-        ".m": "objc",
-        ".mm": "objc",
-        ".java": "java",
-        ".kt": "kotlin",
-        ".py": "python",
-        ".js": "javascript",
-        ".ts": "typescript",
-    }
-    return ext_map.get(ext, "swift")  # Default to swift if unknown
 
 def load_parser(language: str):
     lang_key = language.lower()
@@ -81,8 +43,6 @@ def load_parser(language: str):
     except Exception as e:
         print(f"An unexpected error occurred while loading parser for {language}: {e}")
         return None
-    parser.set_language(Language(so_path, ts_lang))
-    return parser
 
 def extract_functions(code: str, language: str = "swift"):
     parser = load_parser(language)
@@ -96,14 +56,6 @@ def extract_functions(code: str, language: str = "swift"):
     except Exception as e:
         print(f"Error during parsing or walking the tree for language '{language}': {e}")
         return []
-    """
-    Extract function definitions from code using tree-sitter.
-    Supported languages: swift, objc, java, kotlin, python, javascript, typescript
-    """
-    lang_key = language.lower()
-    parser = load_parser(lang_key)
-    tree = parser.parse(bytes(code, "utf8"))
-    root = tree.root_node
 
     node_types = FUNCTION_NODE_TYPES.get(lang_key, ["function_declaration"])
     functions = []
