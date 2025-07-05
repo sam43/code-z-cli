@@ -279,16 +279,24 @@ def run(with_memory=True):
         # Handle shell commands starting with '!'
         if query.strip().startswith("!"):
             import subprocess
-            shell_cmd = query.strip()[1:]
-            if not shell_cmd:
+            shell_cmd_str = query.strip()[1:]
+            if not shell_cmd_str:
                 console.print("[red]No shell command provided after '!'.[/red]")
                 continue
             try:
-                result = subprocess.run(shell_cmd, shell=True, capture_output=True, text=True)
+                # Split the command string into a list for shell=False
+                shell_cmd_list = shlex.split(shell_cmd_str)
+                if not shell_cmd_list: # Handle empty string after shlex.split
+                    console.print("[red]No valid shell command provided after '!'.[/red]")
+                    continue
+
+                result = subprocess.run(shell_cmd_list, shell=False, capture_output=True, text=True)
                 if result.stdout:
                     console.print(f"[green]{result.stdout}[/green]", end="")
                 if result.stderr:
                     console.print(f"[red]{result.stderr}[/red]", end="")
+            except FileNotFoundError:
+                console.print(f"[red]Error: Command not found: {shell_cmd_list[0]}[/red]")
             except Exception as e:
                 console.print(f"[red]Shell command error:[/red] {e}")
             continue
@@ -341,8 +349,8 @@ def run(with_memory=True):
             if cmd[0] == "/tools":
                 show_tools()
                 continue
-            if cmd[0] == "/model":
-                # /model -u <current_model> <new_model>
+            if cmd[0] == "/models" or cmd[0] == "/model": # Allow both /models and /model
+                # /models -u <current_model> <new_model>
                 if len(cmd) >= 4 and cmd[1] in ["-u", "--update"]:
                     current_model = cmd[2]
                     new_model = cmd[3]
@@ -384,10 +392,17 @@ def run(with_memory=True):
             continue
         # Handle shell commands starting with '!'
         if query.strip().startswith("!"):
-            shell_cmd = query.strip()[1:]
+            shell_cmd_str = query.strip()[1:]
             import subprocess
+            if not shell_cmd_str:
+                console.print("[red]No shell command provided after '!'.[/red]")
+                continue
             try:
-                result = subprocess.run(shell_cmd, shell=True, capture_output=True, text=True)
+                shell_cmd_list = shlex.split(shell_cmd_str)
+                if not shell_cmd_list: # Handle empty string after shlex.split
+                    console.print("[red]No valid shell command provided after '!'.[/red]")
+                    continue
+                result = subprocess.run(shell_cmd_list, shell=False, capture_output=True, text=True)
                 if result.stdout:
                     console.print(f"[green]{result.stdout.strip()}[/green]")
                 if result.stderr:
@@ -421,8 +436,8 @@ def run(with_memory=True):
         if query.strip().lower() in ["clr", "/clear"]:
             console.clear()
             continue
-        if query.strip().lower() == "clear":
-            console.print("[yellow]To clear the console, type 'clr' or '/clear'.[/yellow]")
+        if query.strip().lower() == "clear": # Make 'clear' also clear the screen
+            console.clear()
             continue
         if query.strip().startswith("/read "):
             arg = query.strip()[6:].strip()
@@ -453,9 +468,18 @@ def run(with_memory=True):
                         "Use the websearch tool only if it is enabled by the user."
                     )
                 full_prompt = f"{system_prompt}\n\nFile content:\n{file_content}\n\nUser question: {user_q}"
-                with console.status("[bold cyan]Thinking deeply about the file and your question..."):
-                    response = model.query_ollama(full_prompt, selected_model)
+                response = None
+                try:
+                    with console.status("[bold cyan]Thinking deeply about the file and your question..."):
+                        # This is not in a separate thread, so direct try-except is fine
+                        response = model.query_ollama(full_prompt, selected_model)
                     last_thinking = summarize_response(response)
+                except Exception as e:
+                    console.print(f"\n[red]Error querying Ollama model: {e}[/red]")
+                    console.print("[yellow]Please ensure Ollama is running and the model is available.[/yellow]")
+                    session.append({"user": user_q, "response": f"Error: {e}", "file": str(Path(filepath).expanduser().resolve())})
+                    continue # Skip response processing
+
                 # Stream the model response
                 console.print("[bold magenta]CodeZ:[/bold magenta]", end=" ")
                 # Stream the model response character by character
@@ -524,8 +548,13 @@ def run(with_memory=True):
             response = None
             def run_model():
                 nonlocal response, done
-                response = model.query_ollama(full_prompt, selected_model)
-                done = True
+                try:
+                    response = model.query_ollama(full_prompt, selected_model)
+                except Exception as e:
+                    # Capture exception to be handled in the main thread
+                    response = e
+                finally:
+                    done = True
             import threading
             t = threading.Thread(target=run_model)
             t.start()
@@ -534,8 +563,18 @@ def run(with_memory=True):
                 status.update(f"[bold cyan]Querying model... {percent}% (Press CTRL+C to stop)[/bold cyan]")
                 time.sleep(0.15)
             t.join()
+
+            if isinstance(response, Exception):
+                console.print(f"\n[red]Error querying Ollama model: {response}[/red]")
+                console.print("[yellow]Please ensure Ollama is running and the model is available.[/yellow]")
+                # Optionally, log the error or take other actions
+                session.append({"user": query, "response": f"Error: {response}"}) # Log error to session
+                # session_agent.memory.add_turn(query, f"Error: {response}") # Also log error to persistent memory
+                continue # Skip response processing and restart loop
+
             status.update("[bold cyan]Querying model... 100%")
-            last_thinking = summarize_response(response)
+            last_thinking = summarize_response(response) # response here is str
+
         # Stream the model response
         console.print("[bold magenta]CodeZ:[/bold magenta]", end=" ")
         if TOOLS.get("process"):
@@ -543,7 +582,7 @@ def run(with_memory=True):
         else:
             filtered = filter_thinking_block(last_thinking)
             print_llm_response_with_snippets(filtered)
-        session.append({"user": query, "response": response})
+        session.append({"user": query, "response": response}) # response is str
         session_agent.memory.add_turn(query, response)  # Add the turn to memory
 
 # Place this near the top with other function definitions
