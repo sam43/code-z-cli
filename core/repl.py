@@ -346,7 +346,7 @@ def run(with_memory=True):
 
     while True:
         with patch_stdout():
-            query = prompt_session.prompt('>>> ', multiline=False, enable_history_search=True)
+            query = prompt_session.prompt(">> ", multiline=False, enable_history_search=True)
         # Detect code block start for multiline input
         if query.strip() == '```':
             # Call the improved multiline_code_input which expects ``` to start and end
@@ -355,7 +355,7 @@ def run(with_memory=True):
 
             # Ask for follow-up question regarding the code
             followup_prompt_text = "What would you like to ask about this code? (Press Enter to just send the code)"
-            followup = prompt_session.prompt(f'{followup_prompt_text}\n>>> ', multiline=False, enable_history_search=True)
+            followup = prompt_session.prompt(f'{followup_prompt_text}\n >>> ', multiline=False, enable_history_search=True)
 
             if followup.strip():
                 query = f"Here is my code:\n```\n{code}\n```\n\n{followup.strip()}"
