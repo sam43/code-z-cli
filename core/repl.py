@@ -19,8 +19,13 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from core.user_config import save_model_choice, load_model_choice, clear_model_choice
 from core.model import fetch_webpage
 import time
+from datetime import datetime
 
 console = Console()
+
+def print_error(message: str, title: str = "Error"):
+    """Prints a Rich Panel formatted error message."""
+    console.print(Panel(Markdown(message), title=f"[bold red]{title}[/bold red]", border_style="red", expand=False))
 
 # TOOLS update for /process
 TOOLS = {
@@ -62,19 +67,19 @@ def read_file_content(filepath: str, cache_context=True):
     try:
         path = Path(filepath).expanduser().resolve()
         if not path.exists():
-            console.print(f"[red]Error: File not found: {path}[/red]")
+            print_error(f"File not found: `{filepath}`")
             return
         if not path.is_file():
-            console.print(f"[red]Error: Not a file: {path}[/red]")
+            print_error(f"`{filepath}` is not a file.")
             return
         content = path.read_text(encoding='utf-8')
         ext = path.suffix.lstrip('.')
-        syntax = Syntax(content, ext, theme="monokai", line_numbers=True)
-        console.print(Panel(syntax, title=str(path)))
+        syntax = Syntax(content, ext, theme="monokai", line_numbers=True, word_wrap=True)
+        console.print(Panel(syntax, title=f"[bold sky_blue1]File: {path.name}[/bold sky_blue1]\n[dim]{path}[/dim]", border_style="sky_blue1", expand=False))
         if cache_context:
             read_file_cache[str(path)] = content
     except Exception as e:
-        console.print(f"[red]Error reading file:[/red] {e}")
+        print_error(f"Could not read file `{filepath}`: {e}", title="File Read Error")
 
 def load_previous_session(session_dir=SESSION_DIR):
     session_files = sorted(glob.glob(os.path.join(session_dir, "session_*.json")), reverse=True)
@@ -85,7 +90,7 @@ def load_previous_session(session_dir=SESSION_DIR):
         with open(latest_session, "r") as f:
             return json.load(f)
     except Exception as e:
-        console.print(f"[red]Failed to load previous session:[/red] {e}")
+        print_error(f"Failed to load previous session: {e}", title="Session Load Error")
         return []
 
 def list_sessions(session_dir=SESSION_DIR):
@@ -93,13 +98,26 @@ def list_sessions(session_dir=SESSION_DIR):
     return session_files
 
 def select_session(session_files):
-    table = Table(title="Available Sessions")
-    table.add_column("Index", justify="right")
-    table.add_column("Filename", justify="left")
-    for idx, fname in enumerate(session_files):
-        table.add_row(str(idx), fname)
-    console.print(table)
-    idx = Prompt.ask("Enter session index to load", choices=[str(i) for i in range(len(session_files))], default="0")
+    table = Table(title="[bold sky_blue1]Available Sessions[/bold sky_blue1]", border_style="sky_blue1", show_lines=True)
+    table.add_column("Index", justify="right", style="cyan", no_wrap=True)
+    table.add_column("File Path", style="magenta", no_wrap=False) # Allow wrap for long paths
+    table.add_column("Last Modified", style="yellow", no_wrap=True)
+
+    for idx, filepath_str in enumerate(session_files):
+        try:
+            mtime = os.path.getmtime(filepath_str)
+            last_modified_str = datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')
+        except Exception:
+            last_modified_str = "N/A"
+        table.add_row(str(idx), filepath_str, last_modified_str)
+
+    console.print(Panel(table, expand=False, title="[dim]Load Session[/dim]"))
+
+    idx = Prompt.ask(
+        "[bold blue]Enter session index to load[/bold blue]",
+        choices=[str(i) for i in range(len(session_files))],
+        default="0"
+    )
     return session_files[int(idx)]
 
 def load_session_file(filepath):
@@ -107,7 +125,7 @@ def load_session_file(filepath):
         with open(filepath, "r") as f:
             return json.load(f)
     except Exception as e:
-        console.print(f"[red]Failed to load session:[/red] {e}")
+        print_error(f"Failed to load session from `{filepath}`: {e}", title="Session Load Error")
         return []
 
 def ensure_session_dir():
@@ -115,24 +133,30 @@ def ensure_session_dir():
         os.makedirs(SESSION_DIR)
 
 def show_tools():
-    table = Table(title="Available Tools")
-    table.add_column("Tool", justify="left")
-    table.add_column("Enabled", justify="center")
+    instruction = "[cyan]Type tool name to toggle, or Enter to exit.[/cyan]"
+    table = Table(title="[bold sky_blue1]Tool Configuration[/bold sky_blue1]", caption=instruction, caption_style="dim", border_style="sky_blue1")
+    table.add_column("Tool", justify="left", style="magenta")
+    table.add_column("Status", justify="center")
+
     for tool, enabled in TOOLS.items():
-        table.add_row(tool, "[green]Yes[/green]" if enabled else "[red]No[/red]")
-    console.print(table)
-    console.print("[cyan]Type the tool name to toggle (enable/disable) it, or press Enter to exit.[/cyan]")
+        status_text = "[bold green]Enabled[/bold green]" if enabled else "[red]Disabled[/red]"
+        table.add_row(tool, status_text)
+
+    console.print(Panel(table, expand=False)) # Wrap table in a simple panel for padding
+
     while True:
-        choice = console.input("[bold blue]>>>  [/bold blue]").strip().lower()
+        # Using Rich's Prompt for consistency if possible, or styled console.input
+        choice = Prompt.ask("[bold blue]Toggle tool (or Enter to exit)[/bold blue]", default="").strip().lower()
+
         if not choice:
             break
         if choice in TOOLS:
             TOOLS[choice] = not TOOLS[choice]
-            console.print(f"[yellow]{choice} is now {'enabled' if TOOLS[choice] else 'disabled'}.[/yellow]")
-            show_tools()
+            console.print(f"🛠️ [yellow]{choice} is now {'[bold green]enabled[/bold green]' if TOOLS[choice] else '[red]disabled[/red]'}.[/yellow]")
+            show_tools() # Recursive call to show updated table
             break
         else:
-            console.print("[red]Unknown tool. Try again or press Enter to exit.[/red]")
+            console.print("[yellow]Unknown tool. Please try again.[/yellow]")
 
 def print_code_snippet(snippet: str, language: str = ""):
     """Print code or text as a formatted snippet in the terminal using Rich."""
@@ -146,14 +170,29 @@ def print_code_snippet(snippet: str, language: str = ""):
         console.print(Panel(snippet, title="Snippet"))
 
 def multiline_code_input(prompt_session=None):
-    console.print("[cyan]Enter your code snippet. Type ``` on a new line to start and end the block. Use Shift+Enter for new lines inside the block.[/cyan]")
+    instruction_text = Markdown("""\
+Enter your code snippet below.
+- Type ` ``` ` on a new line to **start** the block.
+- Paste or type your code.
+- Use **Shift+Enter** for new lines within the block if using the default console input.
+- Type ` ``` ` on a new line again to **finish** the block.
+""")
+    console.print(Panel(instruction_text, title="[bold cyan]Multiline Code Input[/bold cyan]", border_style="cyan", expand=False))
+
     lines = []
     in_block = False
+
+    # Use a consistent prompt style
+    input_prompt_style = "[bold sky_blue1]>>> (code)[/bold sky_blue1] " if prompt_session else "[bold sky_blue1]> (code)[/bold sky_blue1] "
+
     while True:
         if prompt_session:
-            line = prompt_session.prompt(">", multiline=True)
+            # Prompt toolkit's prompt doesn't directly take Rich ConsoleMarkup for the prompt string
+            # For simplicity, keeping the prompt session's default prompt look here
+            line = prompt_session.prompt(">>> (code) ", multiline=True) # Simple text prompt
         else:
-            line = console.input(">")
+            line = console.input(input_prompt_style)
+
         if line.strip() == "```":
             if in_block:
                 break
@@ -164,16 +203,36 @@ def multiline_code_input(prompt_session=None):
             lines.append(line)
     return "\n".join(lines)
 
+import random
+
 def print_welcome():
-    console.print("\n")
-    console.print("🧠 [bold green]Welcome to CodeZ CLI – Your Offline Code Companion[/bold green]")
-    console.print("═══════════════════════════════════════════════════════")
-    console.print("📂 [bold green]Analyze code files and directories in Swift, Obj-C[/bold green]")
-    console.print("🧾 [bold green]Ask natural language questions about functions or files[/bold green]")
-    console.print("🧱 [bold green]Use triple backticks ``` to enter code blocks interactively[/bold green]")
-    console.print("🚪 [bold green]Type 'exit', '/endit', or 'quit' anytime to leave[/bold green]")
-    console.print("[!] [bold cyan]To run a shell command - just add '!' before your shell command i.e: '!ls', '!pwd' etc.[/bold cyan]")
-    console.print("═══════════════════════════════════════════════════════\n")
+    tips = [
+        "Use `/read <filepath>` to load a file's content into the conversation.",
+        "Type `!ls` or any other shell command directly into the prompt!",
+        "Use `/models` to see available LLMs or switch to a different one.",
+        "Your conversation history provides context to the LLM. Use `/forget_session` to clear it.",
+        "Code blocks can be entered by typing ```, pasting your code, then ``` on a new line.",
+        "Access help anytime with the `/helpme` command.",
+        "Use `/tools` to toggle features like web search (if available)."
+    ]
+    selected_tip = random.choice(tips)
+
+    welcome_message = f"""\
+🧠 [bold green]Welcome to CodeZ CLI – Your Offline Code Companion[/bold green]
+
+Key Features:
+*   📂 Analyze code ([bold]Swift, Obj-C[/bold] via tree-sitter, other languages generally)
+*   🧾 Ask natural language questions about your code
+*   🧱 Interactive code input using triple backticks (```)
+*   셸 Run shell commands with an exclamation mark prefix (e.g., [bold cyan]!ls[/bold cyan])
+*   🚪 Type [bold]'exit', '/endit',[/bold] or [bold]'quit'[/bold] to end the session
+
+💡 [bold yellow]Tip of the session:[/bold yellow] {selected_tip}
+
+Type `/helpme` for a full list of commands.
+"""
+    console.print(Panel(Markdown(welcome_message), title="[bold bright_magenta]CodeZ CLI[/bold bright_magenta]", border_style="bold blue", expand=False))
+    console.print() # Add a newline after the panel
 
 
 def run(with_memory=True):
@@ -187,27 +246,27 @@ def run(with_memory=True):
     saved_model = load_model_choice()
     selected_model = None
     if err:
-        console.print(f"[red]{err}[/red]")
+        print_error(err, title="Ollama Error")
         return
     if models:
         if saved_model and saved_model in models:
             selected_model = saved_model
-            console.print(f"[green]Using saved model:[/green] {selected_model}")
+            console.print(f"✅ [green]Using saved model:[/green] {selected_model}")
         else:
-            console.print("[cyan]Available models:[/cyan] " + ", ".join(models))
-            selected_model = console.input("[bold blue]Enter model name (default: deepseek-r1:latest): [/bold blue]").strip()
-            if not selected_model:
+            console.print("[cyan]Available models:[/cyan]\n - " + "\n - ".join(models))
+            selected_model = Prompt.ask("[bold blue]Enter model name[/bold blue]", default="deepseek-r1:latest").strip()
+            if not selected_model: # Should be handled by Prompt.ask default, but as a safeguard
                 selected_model = "deepseek-r1:latest"
             if selected_model not in models:
-                console.print(f"[red]Model '{selected_model}' not found. Please add it using 'ollama pull {selected_model}' and restart.")
+                print_error(f"Model [bold]'{selected_model}'[/bold] not found locally. Please ensure it's pulled via `ollama pull {selected_model}` and then restart.", title="Model Not Found")
                 return
             # Ask to save model
-            save = console.input("[bold blue]Save this model for future sessions? (y/n): [/bold blue]").strip().lower()
+            save = Prompt.ask("[bold blue]Save this model for future sessions? (y/n)[/bold blue]", choices=["y", "n"], default="y").lower()
             if save in ["y", "yes"]:
                 save_model_choice(selected_model)
                 console.print(f"[green]Model '{selected_model}' saved for future sessions.[/green]")
     else:
-        console.print("[red]No models found in ollama. Please add a model using 'ollama pull <model>' and restart.")
+        print_error("No models found in Ollama. Please add a model using `ollama pull <model_name>` and then restart.", title="Ollama Model Error")
         return
 
     # console.print("[bold green]Welcome to CodeZ CLI. Type '/endit' to end session.[/bold green]")
@@ -267,15 +326,20 @@ def run(with_memory=True):
     while True:
         with patch_stdout():
             query = prompt_session.prompt('>>> ', multiline=False, enable_history_search=True)
-        # Detect code block start
+        # Detect code block start for multiline input
         if query.strip() == '```':
-            code = paste_code_snippet_block()
-            console.print("[green]Code block pasted. Continue typing your question or press Enter to send.[/green]")
-            followup = prompt_session.prompt('>>> ', multiline=False, enable_history_search=True)
+            # Call the improved multiline_code_input which expects ``` to start and end
+            code = multiline_code_input(prompt_session)
+            console.print("✅ [green]Code block captured.[/green]")
+
+            # Ask for follow-up question regarding the code
+            followup_prompt_text = "What would you like to ask about this code? (Press Enter to just send the code)"
+            followup = prompt_session.prompt(f'{followup_prompt_text}\n>>> ', multiline=False, enable_history_search=True)
+
             if followup.strip():
-                query = f"Here is my code:\n{code}\n{followup.strip()}"
+                query = f"Here is my code:\n```\n{code}\n```\n\n{followup.strip()}"
             else:
-                query = f"Here is my code:\n{code}"
+                query = f"Here is my code:\n```\n{code}\n```"
         # Handle shell commands starting with '!'
         if query.strip().startswith("!"):
             import subprocess
@@ -294,11 +358,13 @@ def run(with_memory=True):
                 if result.stdout:
                     console.print(f"[green]{result.stdout}[/green]", end="")
                 if result.stderr:
-                    console.print(f"[red]{result.stderr}[/red]", end="")
+                    # Using print_error for stderr from shell, but maybe too much if it's just a warning
+                    # Keep as is for now, can be refined if too verbose.
+                    print_error(result.stderr, title=f"Shell Command Error ({shell_cmd_list[0]})")
             except FileNotFoundError:
-                console.print(f"[red]Error: Command not found: {shell_cmd_list[0]}[/red]")
+                print_error(f"Command not found: `{shell_cmd_list[0]}`", title="Shell Command Error")
             except Exception as e:
-                console.print(f"[red]Shell command error:[/red] {e}")
+                print_error(f"Failed to execute shell command: {e}", title="Shell Command Error")
             continue
         # Handle all tool commands starting with '/'
         if query.strip().startswith("/"):
@@ -308,7 +374,7 @@ def run(with_memory=True):
             if read_match:
                 filepath = read_match.group(2)
                 if not filepath:
-                    console.print("[red]No file path provided.[/red]")
+                    print_error("No file path provided for `/read` command.", title="Command Error")
                     continue
                 read_file_content(filepath)
                 console.print(f"[yellow]Finished reading {filepath}. Do you need any assistance with this file? (yes/no)[/yellow]")
@@ -344,7 +410,7 @@ def run(with_memory=True):
             # Only split for other tool commands if not /read
             cmd = shlex.split(query.strip())
             if cmd[0] == "/helpme":
-                console.print(HELP_TEXT)
+                console.print(Panel(Markdown(HELP_TEXT), title="[bold cyan]Help & Commands[/bold cyan]", border_style="cyan", expand=False))
                 continue
             if cmd[0] == "/tools":
                 show_tools()
@@ -356,22 +422,22 @@ def run(with_memory=True):
                     new_model = cmd[3]
                     models, err = model_mod.get_ollama_models()
                     if err:
-                        console.print(f"[red]{err}[/red]")
+                        print_error(err, title="Ollama Error")
                         continue
                     if new_model not in models:
-                        console.print(f"[red]Model '{new_model}' not found. Please add it using 'ollama pull {new_model}' and try again.")
+                        print_error(f"Model [bold]'{new_model}'[/bold] not found. Please add it using `ollama pull {new_model}` and try again.", title="Model Not Found")
                         continue
                     save_model_choice(new_model)
-                    console.print(f"[green]Model updated from '{current_model}' to '{new_model}'.[/green]")
+                    console.print(f"✅ [green]Model updated from '{current_model}' to '{new_model}'.[/green]")
                     selected_model = new_model
                 else:
                     # Show current and available models
                     models, err = model_mod.get_ollama_models()
                     if err:
-                        console.print(f"[red]{err}[/red]")
+                        print_error(err, title="Ollama Error")
                         continue
                     console.print(f"[cyan]Current model:[/cyan] {selected_model}")
-                    console.print("[cyan]Available models:[/cyan] " + ", ".join(models))
+                    console.print("[cyan]Available models:[/cyan]\n - " + "\n - ".join(models))
                 continue
             if cmd[0] == "/process":
                 if last_thinking:
@@ -388,7 +454,7 @@ def run(with_memory=True):
                 console.print("[yellow]Previous session context forgotten. You are now starting fresh.[/yellow]")
                 continue
             # Unknown tool command
-            console.print(f"[red]Unknown tool command: {cmd[0]}")
+            print_error(f"Unknown tool command: `{cmd[0]}`\nType `/helpme` to see available commands.", title="Command Error")
             continue
         # Handle shell commands starting with '!'
         if query.strip().startswith("!"):
@@ -406,9 +472,11 @@ def run(with_memory=True):
                 if result.stdout:
                     console.print(f"[green]{result.stdout.strip()}[/green]")
                 if result.stderr:
-                    console.print(f"[red]{result.stderr.strip()}[/red]")
+                    print_error(result.stderr.strip(), title=f"Shell Command Error ({shell_cmd_list[0]})")
+            except FileNotFoundError:
+                 print_error(f"Command not found: `{shell_cmd_list[0]}`", title="Shell Command Error")
             except Exception as e:
-                console.print(f"[red]Shell command failed: {e}[/red]")
+                print_error(f"Failed to execute shell command: {e}", title="Shell Command Error")
             continue
         # All non-tool commands below here
         if query.strip() == "```":
@@ -447,10 +515,10 @@ def run(with_memory=True):
             except Exception:
                 filepath = arg.split(' ')[0]
             if not filepath:
-                console.print("[red]No file path provided.[/red]")
+                print_error("No file path provided for `/read` command.", title="Command Error")
                 continue
             read_file_content(filepath)
-            console.print(f"[yellow]Finished reading {filepath}. Do you need any assistance with this file? (yes/no)[/yellow]")
+            console.print(f"✅ [yellow]Finished reading {filepath}. Do you need any assistance with this file? (yes/no)[/yellow]")
             followup = console.input("[bold blue]>>> [/bold blue]").strip().lower()
             if followup in ["yes", "y"]:
                 file_content = read_file_cache.get(str(Path(filepath).expanduser().resolve()), "")
@@ -473,10 +541,9 @@ def run(with_memory=True):
                     with console.status("[bold cyan]Thinking deeply about the file and your question..."):
                         # This is not in a separate thread, so direct try-except is fine
                         response = model.query_ollama(full_prompt, selected_model)
-                    last_thinking = summarize_response(response)
+                    last_thinking = summarize_response(response) # response is str
                 except Exception as e:
-                    console.print(f"\n[red]Error querying Ollama model: {e}[/red]")
-                    console.print("[yellow]Please ensure Ollama is running and the model is available.[/yellow]")
+                    print_error(f"Ollama model query failed: {e}\nPlease ensure Ollama is running and the model (`{selected_model}`) is available.", title="Ollama Query Error")
                     session.append({"user": user_q, "response": f"Error: {e}", "file": str(Path(filepath).expanduser().resolve())})
                     continue # Skip response processing
 
@@ -492,10 +559,10 @@ def run(with_memory=True):
         if query.strip().startswith("/load_session"):
             session_files = list_sessions()
             if not session_files:
-                console.print("[red]No session files found.[/red]")
+                console.print("[yellow]No previous session files found in `sessions/` directory.[/yellow]") # Info, not error
                 continue
             selected = select_session(session_files)
-            prev_context = load_session_file(selected)
+            prev_context = load_session_file(selected) # Errors handled in load_session_file
             console.print(f"[green]Loaded session: {selected}[/green]")
             continue
         if query.strip().startswith("/forget_session"):
@@ -541,9 +608,16 @@ def run(with_memory=True):
                 "Align your answer strictly with the resource, context, and question. "
             )
             full_prompt = f"{system_prompt}\n\n{context_str}\nUser: {query}\nModel:"
-        with console.status("[bold cyan]Preparing context...") as status:
-            # Simulate progress percentage while querying model
-            percent = 0
+        stages = [
+            "[bold cyan]Sending query to model...[/bold cyan]",
+            "[bold cyan]Model is processing your request...[/bold cyan]",
+            "[bold cyan]Compiling thoughts and insights...[/bold cyan]",
+            "[bold cyan]Almost there, fetching results...[/bold cyan]"
+        ]
+        stage_idx = 0
+        last_stage_update_time = time.time()
+
+        with console.status(stages[stage_idx], spinner="dots8") as status: # Using a different spinner
             done = False
             response = None
             def run_model():
@@ -559,17 +633,19 @@ def run(with_memory=True):
             t = threading.Thread(target=run_model)
             t.start()
             while not done:
-                percent = min(percent + 7, 99)  # Simulate progress
-                status.update(f"[bold cyan]Querying model... {percent}% (Press CTRL+C to stop)[/bold cyan]")
-                time.sleep(0.15)
+                current_time = time.time()
+                # Cycle through stages every 2.5 seconds
+                if current_time - last_stage_update_time > 2.5:
+                    stage_idx = (stage_idx + 1) % len(stages)
+                    status.update(stages[stage_idx])
+                    last_stage_update_time = current_time
+                time.sleep(0.1) # Short sleep to keep loop responsive
             t.join()
 
             if isinstance(response, Exception):
-                console.print(f"\n[red]Error querying Ollama model: {response}[/red]")
-                console.print("[yellow]Please ensure Ollama is running and the model is available.[/yellow]")
-                # Optionally, log the error or take other actions
-                session.append({"user": query, "response": f"Error: {response}"}) # Log error to session
-                # session_agent.memory.add_turn(query, f"Error: {response}") # Also log error to persistent memory
+                print_error(f"Ollama model query failed: {response}\nPlease ensure Ollama is running and the model (`{selected_model}`) is available.", title="Ollama Query Error")
+                session.append({"user": query, "response": f"Error: {response}"})
+                # Not adding to session_agent.memory here as it expects successful model response string
                 continue # Skip response processing and restart loop
 
             status.update("[bold cyan]Querying model... 100%")
