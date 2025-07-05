@@ -18,6 +18,7 @@ setup(
         'rich',
         'prompt_toolkit',
         'platformdirs',
+        'tree-sitter',  # Added tree-sitter for parsing
     ],
     entry_points={
         'console_scripts': [

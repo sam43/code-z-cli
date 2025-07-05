@@ -14,8 +14,9 @@ dependencies = [
     "rich",
     "prompt_toolkit",
     "platformdirs",
+    "tree-sitter",  # Added tree-sitter for parsing
 ]
 requires-python = ">=3.8"
 
 [project.scripts]
-codez = "core.repl:run"
+codez = "codechat.__main__:main"  # Corrected entry point
