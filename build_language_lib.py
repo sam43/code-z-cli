@@ -1,20 +1,13 @@
 # build_language_lib.py
 import os
-from tree_sitter import Language
+import configparser
 
-# List all language submodules you want to build
-LANG_MODULES = [
-    'tree-sitter-c',
-    'tree-sitter-go',
-    'tree-sitter-php',
-    'tree-sitter-rust',
-    'tree-sitter-swift',
-    'tree-sitter-typescript',
-    'py-tree-sitter',
-    'java-tree-sitter',
-    'kotlin-tree-sitter',
-]
+def get_submodules():
+    config = configparser.ConfigParser()
+    config.read('.gitmodules')
+    return [section.split('"')[1] for section in config.sections()]
 
+LANG_MODULES = get_submodules()
 VENDOR_DIR = 'vendor'
 BUILD_DIR = 'build'
 os.makedirs(BUILD_DIR, exist_ok=True)
@@ -23,13 +16,13 @@ missing_grammars = []
 built_grammars = []
 
 for lang in LANG_MODULES:
-    lang_path = os.path.join(VENDOR_DIR, lang)
+    lang_path = os.path.join(VENDOR_DIR, lang.split('/')[-1])
     parser_c = os.path.join(lang_path, 'src', 'parser.c')
     if not os.path.exists(parser_c):
         print(f"[WARN] Skipping {lang}: missing {parser_c}")
         missing_grammars.append(lang)
         continue
-    so_name = f"{lang.replace('tree-sitter-', '').replace('-', '_')}.so"
+    so_name = f"{lang.split('/')[-1].replace('tree-sitter-', '').replace('-', '_')}.so"
     out_path = os.path.join(BUILD_DIR, so_name)
     print(f"Building {lang} -> {out_path}")
     Language.build_library(

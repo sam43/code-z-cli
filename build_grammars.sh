@@ -8,36 +8,43 @@ BUILD_DIR="$(cd "$(dirname "$0")" && pwd)/build"
 mkdir -p "$BUILD_DIR"
 ORIG_DIR="$(pwd)"
 
-# List of submodule paths and their output .so names
-LANGS=(
-  "vendor/tree-sitter-swift ios_lang.so"
-  "vendor/py-tree-sitter python_lang.so"
-  "vendor/java-tree-sitter java_lang.so"
-  "vendor/kotlin-tree-sitter kotlin_lang.so"
-  "vendor/tree-sitter-javascript javascript_lang.so"
-  "vendor/tree-sitter-typescript/typescript typescript_lang.so"
-  "vendor/tree-sitter-go go_lang.so"
-  "vendor/tree-sitter-c c_lang.so"
-  "vendor/tree-sitter-php php_lang.so"
-  "vendor/tree-sitter-rust rust_lang.so"
-)
+# Dynamically build the LANGS array from .gitmodules
+LANGS=()
+while IFS= read -r line; do
+    if [[ $line == *"path = vendor/"* ]]; then
+        path=$(echo "$line" | awk '{print $3}')
+        name=$(basename "$path" | sed 's/tree-sitter-//' | tr '-' '_')
+        LANGS+=("$path ${name}_lang.so")
+    fi
+done < ".gitmodules"
 
 for entry in "${LANGS[@]}"; do
-  set -- $entry
-  DIR=$1
-  OUT=$2
-  echo "Building $OUT from $DIR..."
-  cd "$DIR"
-  tree-sitter generate || { echo "tree-sitter generate failed in $DIR"; exit 1; }
-  if [ -f src/scanner.c ]; then
-    gcc -shared -o "$BUILD_DIR/$OUT" -fPIC src/parser.c src/scanner.c
-  else
-    gcc -shared -o "$BUILD_DIR/$OUT" -fPIC src/parser.c
-  fi
-  cd "$ORIG_DIR" > /dev/null
-  echo "Built $BUILD_DIR/$OUT"
-done
+    read -r lang_path so_name <<< "$entry"
+    echo "Building $so_name from $lang_path"
+    
+    cd "$lang_path"
+    if [ ! -f "src/parser.c" ]; then
+        echo "src/parser.c not found in $lang_path. Skipping..."
+        cd "$ORIG_DIR"
+        continue
+    fi
 
+    if [ "$lang_path" == "vendor/tree-sitter-swift" ]; then
+        echo "Skipping $lang_path as it requires npm installation"
+        cd "$ORIG_DIR"
+        continue
+    fi
+
+    if [ -f "Makefile" ]; then
+        make
+    fi
+
+    gcc -c -I./src -I. src/parser.c
+    gcc -shared -o "$BUILD_DIR/$so_name" parser.o
+    rm parser.o
+    cd "$ORIG_DIR"
+    echo "Built $so_name successfully."
+done
 echo "All grammars built successfully."
 
 # Build grammar.js for all tree-sitter grammars in vendor/

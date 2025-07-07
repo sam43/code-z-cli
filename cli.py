@@ -1,4 +1,3 @@
-# cli.py
 import typer
 from core import repl, summarizer
 
@@ -15,5 +14,8 @@ def chat():
     """Interactive REPL to ask questions about code"""
     repl.run()
 
-if __name__ == "__main__":
+def main():
     app()
+
+if __name__ == "__main__":
+    main()

@@ -1,21 +1,36 @@
 # core/parser.py
+import os
 from tree_sitter import Language, Parser
 import os
 
+# Determine the project root directory from the location of parser.py
+# parser.py is in core/, so project_root is one level up.
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+BUILD_DIR = os.path.join(PROJECT_ROOT, 'build')
+
+# Build .so paths dynamically
+IOS_LANG_SO_PATH = os.path.join(BUILD_DIR, 'ios_lang.so')
+JAVA_LANG_SO_PATH = os.path.join(BUILD_DIR, 'java_lang.so')
+KOTLIN_LANG_SO_PATH = os.path.join(BUILD_DIR, 'kotlin_lang.so')
+PYTHON_LANG_SO_PATH = os.path.join(BUILD_DIR, 'python_lang.so')
+JAVASCRIPT_LANG_SO_PATH = os.path.join(BUILD_DIR, 'javascript_lang.so')
+TYPESCRIPT_LANG_SO_PATH = os.path.join(BUILD_DIR, 'typescript_lang.so')
+GO_LANG_SO_PATH = os.path.join(BUILD_DIR, 'go_lang.so')
+
 # Map language names to their .so grammar files and tree-sitter language names
 LANGUAGES = {
-    "swift":  ("./build/ios_lang.so", "swift"),
-    "objc":   ("./build/ios_lang.so", "objc"),
-    "java":   ("./build/java_lang.so", "java"),
-    "kt":     ("./build/kotlin_lang.so", "kotlin"),
-    "kotlin": ("./build/kotlin_lang.so", "kotlin"),
-    "py":     ("./build/python_lang.so", "python"),
-    "python": ("./build/python_lang.so", "python"),
-    "js":     ("./build/javascript_lang.so", "javascript"),
-    "javascript": ("./build/javascript_lang.so", "javascript"),
-    "ts":     ("./build/typescript_lang.so", "typescript"),
-    "typescript": ("./build/typescript_lang.so", "typescript"),
-    "go":     ("./build/go_lang.so", "go"),
+    "swift":  (IOS_LANG_SO_PATH, "swift"),
+    "objc":   (IOS_LANG_SO_PATH, "objc"),
+    "java":   (JAVA_LANG_SO_PATH, "java"),
+    "kt":     (KOTLIN_LANG_SO_PATH, "kotlin"),
+    "kotlin": (KOTLIN_LANG_SO_PATH, "kotlin"),
+    "py":     (PYTHON_LANG_SO_PATH, "python"),
+    "python": (PYTHON_LANG_SO_PATH, "python"),
+    "js":     (JAVASCRIPT_LANG_SO_PATH, "javascript"),
+    "javascript": (JAVASCRIPT_LANG_SO_PATH, "javascript"),
+    "ts":     (TYPESCRIPT_LANG_SO_PATH, "typescript"),
+    "typescript": (TYPESCRIPT_LANG_SO_PATH, "typescript"),
+    "go":     (GO_LANG_SO_PATH, "go"),
 }
 
 # Node types for function definitions in each language
@@ -67,7 +82,6 @@ def extract_functions(code: str, language: str = "swift"):
     parser = load_parser(lang_key)
     tree = parser.parse(bytes(code, "utf8"))
     root = tree.root_node
-
     node_types = FUNCTION_NODE_TYPES.get(lang_key, ["function_declaration"])
     functions = []
 
@@ -89,10 +103,10 @@ def get_missing_grammars():
     missing = []
     for lang, (so_path, ts_lang) in LANGUAGES.items():
         # Guess submodule dir from so_path (assumes vendor/<submodule>)
-        parts = so_path.split('/')
-        if len(parts) < 3:
+        parts = os.path.relpath(so_path, PROJECT_ROOT).split(os.sep)
+        if len(parts) < 2:
             continue
-        submodule_dir = '/'.join(parts[:2])
+        submodule_dir = os.path.join(PROJECT_ROOT, 'vendor', f'tree-sitter-{lang}')
         grammar_js = os.path.join(submodule_dir, 'grammar.js')
         if not os.path.exists(grammar_js):
             missing.append((lang, submodule_dir))
