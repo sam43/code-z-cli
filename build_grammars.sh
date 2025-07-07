@@ -19,9 +19,32 @@ while IFS= read -r line; do
 done < ".gitmodules"
 
 for entry in "${LANGS[@]}"; do
-    # ... (rest of the script remains the same)
-done
+    read -r lang_path so_name <<< "$entry"
+    echo "Building $so_name from $lang_path"
+    
+    cd "$lang_path"
+    if [ ! -f "src/parser.c" ]; then
+        echo "src/parser.c not found in $lang_path. Skipping..."
+        cd "$ORIG_DIR"
+        continue
+    fi
 
+    if [ "$lang_path" == "vendor/tree-sitter-swift" ]; then
+        echo "Skipping $lang_path as it requires npm installation"
+        cd "$ORIG_DIR"
+        continue
+    fi
+
+    if [ -f "Makefile" ]; then
+        make
+    fi
+
+    gcc -c -I./src -I. src/parser.c
+    gcc -shared -o "$BUILD_DIR/$so_name" parser.o
+    rm parser.o
+    cd "$ORIG_DIR"
+    echo "Built $so_name successfully."
+done
 echo "All grammars built successfully."
 
 # Build grammar.js for all tree-sitter grammars in vendor/

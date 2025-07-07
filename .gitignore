@@ -1,7 +1,9 @@
 venv/
+build/
+*.egg-info/
 sessions/
 core/__pycache__/
-grammars/
+node_modules/
 codechat/tree-sitter-c
 codechat/tree-sitter-swift
 codechat/__pycache__
