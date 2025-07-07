@@ -1,11 +1,7 @@
 venv/
 sessions/
 core/__pycache__/
-codechat/tree-sitter-c
-codechat/tree-sitter-swift
 grammars/
-tree-sitter-c
-tree-sitter-swift
 codechat/tree-sitter-c
 codechat/tree-sitter-swift
 codechat/__pycache__
