@@ -1,6 +1,48 @@
 [submodule "tree-sitter-c"]
-	path = tree-sitter-c
-	url = https://github.com/sam43/tree-sitter-c
+	path = vendor/tree-sitter-c
+	url = https://github.com/tree-sitter/tree-sitter-c
 [submodule "tree-sitter-swift"]
-	path = tree-sitter-swift
-	url = https://github.com/sam43/tree-sitter-swift
+	path = vendor/tree-sitter-swift
+	url = https://github.com/tree-sitter/tree-sitter-swift
+[submodule "py-tree-sitter"]
+	path = vendor/py-tree-sitter
+	url = https://github.com/tree-sitter/py-tree-sitter
+[submodule "tree-sitter-php"]
+	path = vendor/tree-sitter-php
+	url = https://github.com/tree-sitter/tree-sitter-php
+[submodule "java-tree-sitter"]
+	path = vendor/java-tree-sitter
+	url = https://github.com/tree-sitter/java-tree-sitter
+[submodule "kotlin-tree-sitter"]
+	path = vendor/kotlin-tree-sitter
+	url = https://github.com/tree-sitter/kotlin-tree-sitter
+[submodule "tree-sitter-go"]
+	path = vendor/tree-sitter-go
+	url = https://github.com/tree-sitter/tree-sitter-go
+[submodule "tree-sitter-rust"]
+	path = vendor/tree-sitter-rust
+	url = https://github.com/tree-sitter/tree-sitter-rust
+[submodule "tree-sitter-typescript"]
+	path = vendor/tree-sitter-typescript
+	url = https://github.com/tree-sitter/tree-sitter-typescript
+[submodule "vendor/py-tree-sitter"]
+	path = vendor/py-tree-sitter
+	url = https://github.com/tree-sitter/py-tree-sitter
+[submodule "vendor/kotlin-tree-sitter"]
+	path = vendor/kotlin-tree-sitter
+	url = https://github.com/tree-sitter/kotlin-tree-sitter
+[submodule "vendor/java-tree-sitter"]
+	path = vendor/java-tree-sitter
+	url = https://github.com/tree-sitter/java-tree-sitter
+[submodule "vendor/tree-sitter-go"]
+	path = vendor/tree-sitter-go
+	url = https://github.com/tree-sitter/tree-sitter-go
+[submodule "vendor/tree-sitter-php"]
+	path = vendor/tree-sitter-php
+	url = https://github.com/tree-sitter/tree-sitter-php
+[submodule "vendor/tree-sitter-rust"]
+	path = vendor/tree-sitter-rust
+	url = https://github.com/tree-sitter/tree-sitter-rust
+[submodule "vendor/tree-sitter-typescript"]
+	path = vendor/tree-sitter-typescript
+	url = https://github.com/tree-sitter/tree-sitter-typescript

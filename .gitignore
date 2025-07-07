@@ -1,8 +1,11 @@
 venv/
 sessions/
 core/__pycache__/
+grammars/
 tree-sitter-c
 tree-sitter-swift
+codechat/tree-sitter-c
+codechat/tree-sitter-swift
 codechat/__pycache__
 codechat/events/__pycache__
 codechat/domain/__pycache__
@@ -11,4 +14,6 @@ codechat/interface/__pycache__
 tests/__pycache__
 dist/
 codez_cli.egg-info/
+.pytest_cache
 vendor/
+.vscode/
