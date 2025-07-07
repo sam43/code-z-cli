@@ -16,7 +16,12 @@ tests/domain/__pycache__
 tests/events/__pycache__
 dist/
 codez_cli.egg-info/
-vendor/
-.pytest_cache/
-.vscode/
-
+vendor/java-tree-sitter
+vendor/kotlin-tree-sitter
+vendor/py-tree-sitter
+vendor/tree-sitter-c
+vendor/tree-sitter-go
+vendor/tree-sitter-php
+vendor/tree-sitter-rust
+vendor/tree-sitter-swift
+vendor/tree-sitter-typescript
