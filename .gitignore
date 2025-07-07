@@ -25,3 +25,4 @@ vendor/tree-sitter-php
 vendor/tree-sitter-rust
 vendor/tree-sitter-swift
 vendor/tree-sitter-typescript
+.vscode/

@@ -1,6 +1,7 @@
 # core/parser.py
 import os
 from tree_sitter import Language, Parser
+import os
 
 # Determine the project root directory from the location of parser.py
 # parser.py is in core/, so project_root is one level up.
