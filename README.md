@@ -177,12 +177,26 @@ Want to peek under the hood, add new features, or fix a bug? Awesome!
 
 ### Running from Source:
 
-After setup, you can run CodeZ directly:
+The easiest way to run CodeZ CLI from source (especially for the interactive chat) is using the provided script:
+
 ```bash
-python -m codechat
-# or
-python __main__.py
+./run_codez.sh
 ```
+This script handles activating the virtual environment (if you followed the setup above and are in the project root where `venv/` exists) and starts the chat interface.
+
+Alternatively, you can run the `typer` based CLI directly:
+```bash
+python cli.py chat
+```
+
+If you want to explore other commands defined in `cli.py` (like `explain`):
+```bash
+python cli.py --help
+python cli.py explain path/to/your/file.py
+```
+
+**Note on `python -m codechat` and `python __main__.py`:**
+The `setup.py` and `pyproject.toml` define `codez=codechat.__main__:main` as the entry point for the installed application. Currently, `codechat/__main__.py` does not exist, so `python -m codechat` will not work. The `__main__.py` in the project root is a different script that executes `cli.py` but is not the entry point for the installed `codez` command. For development, `run_codez.sh` or `python cli.py chat` are the recommended methods.
 
 ### Running Tests:
 
@@ -199,28 +213,35 @@ PYTHONPATH=. pytest -s tests/core/test_llm_interactive.py
 
 ```
 code-z-cli/
-├── codechat/             # Main application package
-│   ├── __main__.py       # Main entry point for `python -m codechat`
-│   ├── interface/        # CLI interface logic
+├── codechat/             # Main application package (intended for core library code)
+│   ├── interface/        # Contains a CLI class (codechat/interface/cli.py), role under review
 │   ├── domain/           # Core domain models (e.g., conversation)
 │   ├── data/             # Data handling (e.g., session repository)
 │   └── docs/             # Contains TECHNICAL.md
-├── core/                 # Core logic (LLM interaction, parsing, REPL)
+├── core/                 # Core logic (LLM interaction, parsing, Rich-based REPL)
 │   ├── model.py          # LLM interaction via Ollama
 │   ├── parser.py         # Code parsing (uses tree-sitter)
-│   ├── repl.py           # REPL implementation (though CLI() is now the entry)
+│   ├── repl.py           # Rich-based REPL implementation, command handling
 │   └── ...
 ├── build/                # Output for compiled libraries like ios_lang.so
 ├── sessions/             # Stores user conversation sessions (created at runtime)
 ├── vendor/               # tree-sitter language grammars (used by build_language_lib.py)
 ├── tests/                # Unit tests
+├── __main__.py           # Root script, can run `cli.py` but not the `codez` entry point
+├── cli.py                # Root Typer-based CLI app (handles `chat`, `explain` commands)
+├── run_codez.sh          # Developer script to easily run the chat interface
 ├── build_language_lib.py # Script to build the tree-sitter language library
-├── setup.py              # Packaging script
-├── pyproject.toml        # Modern Python packaging configuration
+├── setup.py              # Packaging script (defines `codez` entry point)
+├── pyproject.toml        # Modern Python packaging (defines `codez` entry point)
 ├── requirements.txt      # Development dependencies
 ├── README.md             # This awesome file!
 └── LICENSE               # Apache 2.0 License
 ```
+*   **Key Files for Running/Entry Points:**
+    *   `run_codez.sh`: Recommended for developers to start the chat. Activates venv and runs `python cli.py chat`.
+    *   `cli.py` (root): Defines the command-line interface using `typer`. `python cli.py chat` starts the REPL.
+    *   `core/repl.py`: Contains the main logic for the interactive REPL session.
+    *   `setup.py` / `pyproject.toml`: Define the packaged `codez` command to point to `codechat.__main__:main`. (Note: `codechat/__main__.py` currently does not exist, which affects the installed `codez` command).
 *   **Note on packaging:** `venv/`, `sessions/`, and `build/` directories should not be included in the distributed PyPI package. `vendor/` is needed to build `ios_lang.so` but isn't strictly a runtime dependency for the app *if* `ios_lang.so` is pre-built.
 
 ### Want to dive deeper?

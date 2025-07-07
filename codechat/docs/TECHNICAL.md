@@ -8,19 +8,23 @@ CodeZ CLI is a terminal-based conversational AI assistant designed for developer
 
 ## Core Architecture 🏗️
 
-The application is structured around a modular design:
+The application is structured around a modular design. Understanding the entry points and CLI components is key:
 
-*   **Entry Point (`codechat.__main__`)**: Initializes and runs the command-line interface.
-*   **CLI Interface (`codechat.interface.cli.CLI`)**: Manages the main REPL loop, user interactions, command dispatching, and orchestrates calls to various services. This is the primary interaction hub.
-*   **LLM Interaction (`core.model`)**: Handles communication with the Ollama service, sending prompts and receiving responses from the local LLM.
-*   **Code Parsing (`core.parser`)**:
-    *   Utilizes the `tree-sitter` library for advanced parsing of specific languages (currently Swift and C/Objective-C).
-    *   Depends on a compiled shared library (`ios_lang.so`) which is built from language grammars located in the `vendor/` directory.
-*   **Session Management (`codechat.data.session_repository`, `core.sqlite_memory`)**:
-    *   Persists conversation history to enable context carry-over between sessions.
-    *   Older versions used JSON files in `sessions/`; newer implementations use an SQLite database for more robust session and memory management.
-*   **Rich Terminal Output**: Employs the `rich` library extensively for styled text, syntax highlighting, markdown rendering, and interactive prompts, ensuring a user-friendly terminal experience.
-*   **Configuration (`core.user_config`)**: Manages user preferences, such as the selected Ollama model, using `platformdirs` to store configuration files in standard user-specific locations.
+*   **Entry Points & Execution Flow**:
+    *   **Development (Recommended for REPL):** The `run_codez.sh` script is provided for easily running the interactive chat REPL. It activates a virtual environment (if present) and executes `python cli.py chat`.
+    *   **Direct Script Execution:**
+        *   `python cli.py [command]`: The root `cli.py` uses `Typer` to define commands (e.g., `chat`, `explain`). `python cli.py chat` launches the interactive REPL.
+        *   `python __main__.py`: The root `__main__.py` script also executes the root `cli.py`.
+    *   **Packaged Application (`codez` command):** `setup.py` and `pyproject.toml` define `codez = codechat.__main__:main` as the console script entry point. **Note:** Currently, `codechat/__main__.py` does not exist, so the installed `codez` command will not function as specified by these configurations without further changes.
+*   **CLI Components**:
+    *   **Root `cli.py` (Typer App):** This is the primary command-line interface handler when running from source via `run_codez.sh` or `python cli.py`. It uses `Typer` to parse arguments and dispatch commands. For the `chat` command, it invokes `core.repl.run()`.
+    *   **`core.repl.py` (Rich REPL Engine):** Contains the detailed logic for the interactive REPL session, including input handling with `prompt_toolkit`, command processing (slash commands, shell commands), display formatting with `Rich`, and orchestrating calls to the LLM.
+    *   **`codechat.interface.cli.CLI`:** This class exists within the `codechat` package. Its `run()` method provides a basic input loop. Its exact role in the current primary application flow initiated by `run_codez.sh` or the root `cli.py` is less direct and might be part of a different or evolving architectural layer.
+*   **LLM Interaction (`core.model`)**: Handles communication with the Ollama service.
+*   **Code Parsing (`core.parser`)**: Uses `tree-sitter` for advanced parsing (Swift, C/Objective-C) via `ios_lang.so`.
+*   **Session Management (`codechat.data.session_repository`, `core.sqlite_memory`)**: Manages conversation history and context.
+*   **Rich Terminal Output**: `rich` library is used throughout `core.repl.py` and other components for UI.
+*   **Configuration (`core.user_config`)**: Manages user preferences.
 
 ---
 
@@ -37,61 +41,88 @@ The application is structured around a modular design:
 
 ## Main Components Deep Dive 🔍
 
-### 1. `codechat.interface.cli.CLI`
-*   The modern entry point for user interaction.
-*   Manages the `prompt_toolkit` session for input.
-*   Parses user input into commands or LLM queries.
-*   Delegates to other components for specific tasks (LLM queries, file reading, etc.).
+### 1. Root `cli.py` (Typer Application)
+*   **Location:** Project root (`./cli.py`)
+*   **Role:** Defines the command-line structure using `Typer`. It handles initial command parsing (e.g., `chat`, `explain <path>`) and sets up the application environment.
+*   For the `chat` command, it calls `core.repl.run()` to start the interactive session.
+*   This is the script executed by `run_codez.sh` and when running `python cli.py ...`.
 
-### 2. `core.model`
+### 2. `core.repl.py` (Rich REPL Engine)
+*   **Location:** `./core/repl.py`
+*   **Role:** The heart of the interactive chat.
+    *   Manages the `prompt_toolkit` session for user input, history, and autocompletion.
+    *   Implements the main REPL loop.
+    *   Parses and handles slash commands (e.g., `/read`, `/helpme`, `/models`), shell commands (`!cmd`), and multiline code input.
+    *   Orchestrates calls to `core.model` for LLM interaction.
+    *   Uses `rich` extensively for displaying formatted output, panels, syntax highlighting, etc.
+    *   Manages session state and context (partially, with `LLMInteractiveSession`).
+
+### 3. `codechat.interface.cli.CLI`
+*   **Location:** `./codechat/interface/cli.py`
+*   **Role:** This class provides a simpler CLI loop. It appears to be part of an event-driven architecture (`bus.subscribe`, `bus.publish`) within the `codechat` package.
+*   Its direct usage in the primary REPL flow (started by `run_codez.sh` or root `cli.py`) is not immediately apparent and might be intended for a different operational mode or is a remnant of prior architectural iterations. It does not use `Typer` or the extensive `Rich` features seen in `core.repl.py`.
+
+### 4. `core.model`
 *   Abstracts Ollama API calls.
 *   Fetches available models, sends queries, and processes responses.
 
-### 3. `core.parser`
+### 5. `core.parser`
 *   Responsible for loading `tree-sitter` grammars (via `build/ios_lang.so`).
-*   Provides functions to parse code strings into ASTs and extract relevant information (e.g., function definitions).
-*   Crucial for features that require deep code understanding.
+*   Provides functions to parse code strings into ASTs and extract relevant information.
 
-### 4. `core.repl.py` (Legacy & Core Logic)
-*   While `codechat.interface.cli.CLI` is the main interface, `core.repl.py` contains significant logic for the REPL behavior, command handling, and interaction flows that are utilized by or were foundational to the current CLI. Many helper functions for session management, output formatting, and command execution reside here.
+### 6. `run_codez.sh`
+*   **Location:** Project root (`./run_codez.sh`)
+*   **Role:** A developer convenience script.
+    *   Ensures it's executable.
+    *   Activates the Python virtual environment (expected at `./venv`).
+    *   Runs `python cli.py chat` to start the interactive REPL.
 
-### 5. `build_language_lib.py` & `vendor/`
-*   **`build_language_lib.py`**: A utility script that uses `tree-sitter` to compile language grammars into a shared library (`.so` or `.dylib` or `.dll` depending on OS). Currently, it builds `build/ios_lang.so` from grammars in `vendor/tree-sitter-swift` and `vendor/tree-sitter-c`.
-*   **`vendor/`**: Contains the `tree-sitter` grammar repositories for languages CodeZ CLI aims to parse with `tree-sitter`. These are essential for running `build_language_lib.py`.
+### 7. `build_language_lib.py` & `vendor/`
+*   **`build_language_lib.py`**: Utility script to compile `tree-sitter` language grammars from `vendor/` into `build/ios_lang.so`.
+*   **`vendor/`**: Contains `tree-sitter` grammar repositories.
 
-### 6. `sessions/` and `core.sqlite_memory.py`
-*   **`sessions/`**: Historically used for storing session data as JSON files. May still be used or referenced for legacy session data.
-*   **`core.sqlite_memory.py`**: Implements session and long-term memory storage using an SQLite database, offering more structured and efficient context management.
+### 8. `sessions/` and `core.sqlite_memory.py`
+*   **`sessions/`**: Historically used for JSON-based session storage.
+*   **`core.sqlite_memory.py`**: Implements more robust session/memory storage using SQLite.
 
 ---
 
 ## Development & Contribution Guide 🛠️
 
+### Running the Application from Source (Interactive REPL)
+The recommended way to run the interactive REPL for development is:
+```bash
+./run_codez.sh
+```
+Alternatively, you can directly run:
+```bash
+python cli.py chat
+```
+Ensure your virtual environment is activated and dependencies from `requirements.txt` are installed.
+
 ### Building `ios_lang.so`
-To enable or test features relying on Swift/C parsing:
-1.  Ensure you have a C compiler installed on your system.
-2.  Run the build script from the project root:
-    ```bash
-    python build_language_lib.py
-    ```
-    This will generate `build/ios_lang.so`. The application expects this file to be present at `./build/ios_lang.so` relative to the location of `core/parser.py` (which effectively means `project_root/build/ios_lang.so` when running from the project root).
+(As previously described)
+1.  Ensure C compiler installed.
+2.  Run `python build_language_lib.py`.
 
 ### Running Tests
-Use `pytest`:
+(As previously described)
 ```bash
 pytest
 ```
-Or, for specific files with more output:
+Or:
 ```bash
 PYTHONPATH=. pytest -s tests/core/test_llm_interactive.py
 ```
 
 ### Adding New Commands or Features
-1.  **CLI Commands**: Modify `codechat.interface.cli.CLI` to recognize new commands. Implement the command's logic, potentially by adding new methods to `CLI` or new functions in relevant `core` modules.
-2.  **Parsing Other Languages**:
-    *   Add the `tree-sitter` grammar for the new language to the `vendor/` directory.
-    *   Update `build_language_lib.py` to include the new grammar in the compilation process.
-    *   Extend `core.parser.py` to load and use the new language grammar.
+*   **For new REPL slash commands (e.g., `/mynewcommand`):**
+    *   Modify `core.repl.py`. Add a new condition to the main input parsing logic to detect your command.
+    *   Implement the function/method that executes the command's logic. This might involve adding new helper functions in `core.repl.py` or other `core` modules.
+*   **For new top-level Typer commands (e.g., `codez newop`):**
+    *   Modify the root `cli.py`. Add a new `@app.command()` decorated function.
+*   **Parsing Other Languages**:
+    *   (As previously described: Add grammar to `vendor/`, update `build_language_lib.py`, extend `core.parser.py`).
 
 ---
 
