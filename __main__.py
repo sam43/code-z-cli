@@ -1,5 +1,10 @@
-# Thin root entry point: delegates to codechat package entry point
-from codechat.__main__ import main
+import sys
+from cli import CLI
+
+def main():
+    cli = CLI()
+    # Pass command line arguments except the script name
+    cli.run(sys.argv[1:])
 
 if __name__ == "__main__":
     main()
