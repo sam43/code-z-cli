@@ -242,11 +242,10 @@ def print_welcome():
     selected_tip = random.choice(tips)
 
     # Adjusted message slightly as main title is now ASCII art
-    welcome_message = f"""\
-🧠 [bold green]Welcome – When AI Takes a Break, We Don’t![/bold green]
+    welcome_message = f"""\  🧠 [bold green]Welcome - We care about your privacy, you are in control here![/bold green]
 
 Key Features:
-*   📂 Analyze code ([bold]Swift, Obj-C[/bold] via tree-sitter, other languages generally)
+*   📂 Analyze code ([bold]Swift, Obj-C, Python, Kotlin, Java, JavaScripts, so on [/bold] via tree-sitter, other languages in general)
 *   🧾 Ask natural language questions about your code
 *   🧱 Interactive code input using triple backticks (```)
 *   셸 Run shell commands with an exclamation mark prefix (e.g., [bold cyan]!ls[/bold cyan])
