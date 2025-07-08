@@ -1,6 +1,11 @@
 #!/bin/bash
 # run_codez.sh - Make sure the script is executable, activate venv, and run the CLI
-
+if [ ! -d "venv" ]; then
+  python3 -m venv venv
+fi
+source venv/bin/activate
+pip install -r requirements.txt
+# ...existing code...
 set -e
 
 # Ensure this script is executable (optional if you want to fix other scripts)
