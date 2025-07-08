@@ -6,9 +6,18 @@ from codechat.events import types
 from codechat.domain.conversation import Message, Conversation
 from codechat.data.session_repository import SessionRepository
 from rich.console import Console
-from rich.panel import Panel
+from rich.text import Text
+import toml
+import os
+
+def get_version():
+    pyproject_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'pyproject.toml')
+    with open(pyproject_path, 'r', encoding='utf-8') as f:
+        data = toml.load(f)
+    return data['project']['version']
 
 class CLI:
+    VERSION = get_version()
     def __init__(self):
         self.conversation = Conversation()
         self.session_repo = SessionRepository()
@@ -19,10 +28,12 @@ class CLI:
     def print_banner(self):
         banner = '''\n  ______          __  _____      ________    ____  \n / ____/___  ____/ /_/__  /     / ____/ /   /  _/  \n/ /   / __ \/ __  / _ \/ /     / /   / /    / /    \n/ /___/ /_/ / /_/ /  __/ /__  / /___/ /____/ /     \n\____/\____/\__,_/\___/____/  \____/_____/___/      \n'''
         tagline = "When AI Takes a Break, We Don’t!  █████████████████████████████████████████████████████████████"
+        version = Text(f"v{self.VERSION}", style="bold cyan")
         self.console.print(banner, style="bold cyan")
         self.console.print("[bold magenta]         CodeZ CLI – When AI Takes a Break, We Don’t![/bold magenta]", justify="center")
         self.console.print(f"[yellow]{tagline}[/yellow]", justify="center")
-        self.console.print("[green]                        v0.2.0[/green]\n", justify="center")
+        self.console.print(version, justify="center")
+        self.console.print()
 
     def handle_user_input(self, content):
         msg = Message(sender="user", content=content)

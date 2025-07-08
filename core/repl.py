@@ -243,7 +243,7 @@ def print_welcome():
 
     # Adjusted message slightly as main title is now ASCII art
     welcome_message = f"""\
-🧠 [bold green]Welcome – When AI Takes a Break, We Don’t![/bold green]
+🧠 [bold green]Welcome - We care about your privacy, you are in control here![/bold green]
 
 Key Features:
 *   📂 Analyze code ([bold]Swift, Obj-C[/bold] via tree-sitter, other languages generally)
