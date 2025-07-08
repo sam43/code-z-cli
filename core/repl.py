@@ -208,19 +208,28 @@ Enter your code snippet below.
 import random
 
 def print_welcome():
-    # Generate ASCII art title
+
+# Generate ASCII art title
     try:
-        f = Figlet(font='slant') # 'slant' or 'standard' are good choices
-        # For very wide terminals, other fonts like 'banner' might be too wide
-        # Default figlet font is 'standard' if 'slant' is not available, though it usually is.
+        f = Figlet(font='standard')  # 'slant' or 'standard' are good choices
         ascii_art_title = f.renderText("CodeZ CLI")
-        console.print(f"[bold bright_magenta]{ascii_art_title}[/bold bright_magenta]", justify="center")
+
+        # Use full bold bright magenta for the ASCII + center it
+        console.print(Text(ascii_art_title, style="bold bright_magenta"), justify="center")
+
+        # Tagline and version info
+        tagline = Text("CodeZ CLI – When AI Takes a Break, We Don’t!", style="bold green")
+        version = Text("v0.2.0", style="bold cyan")
+
+        console.print(tagline, justify="center")
+        console.print(version, justify="center")
+
     except Exception as e:
-        # Fallback if figlet fails for any reason (e.g. font not found, though unlikely for standard ones)
+        # Fallback text if Figlet fails
         console.print("[bold bright_magenta]CodeZ CLI[/bold bright_magenta]", justify="center", style="italic")
+        console.print("[bold yellow]When AI Takes a Break, We Don’t![/bold yellow]", justify="center")
+        console.print("[cyan]v0.2.0[/cyan]", justify="center")
         print_error(f"Could not render Figlet title: {e}", "Display Warning")
-
-
     tips = [
         "Use `/read <filepath>` to load a file's content into the conversation.",
         "Type `!ls` or any other shell command directly into the prompt!",
@@ -234,7 +243,7 @@ def print_welcome():
 
     # Adjusted message slightly as main title is now ASCII art
     welcome_message = f"""\
-🧠 [bold green]Welcome – Your Offline Code Companion[/bold green]
+🧠 [bold green]Welcome – When AI Takes a Break, We Don’t![/bold green]
 
 Key Features:
 *   📂 Analyze code ([bold]Swift, Obj-C[/bold] via tree-sitter, other languages generally)
