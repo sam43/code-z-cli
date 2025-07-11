@@ -1,4 +1,9 @@
 # 🤖 CodeZ CLI – Your Supercharged Offline Coding Buddy! 🚀
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/sam43/code-z-cli?utm_source=oss&utm_medium=github&utm_campaign=sam43%2Fcode-z-cli&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+![Sponsor](https://img.shields.io/github/sponsors/sam43)
+![PyPI - Version](https://img.shields.io/pypi/v/codez-cli)
+![PyPI - Downloads](https://img.shields.io/pypi/dw/codez-cli)
+
 
 Ever wished you had a coding assistant right in your terminal, one that respects your privacy and works offline? Meet **CodeZ CLI**! 🎉 It's a friendly, conversational code companion powered by local Large Language Models (LLMs) through Ollama, all jazzed up with slick Rich terminal visuals.
 
