@@ -34,19 +34,35 @@ TOOLS = {
     "websearch": False,
     "process": False
 }
-
 HELP_TEXT = '''\
-[bold cyan]Available Commands:[/bold cyan]
-- [bold blue]/read <filepath>[/bold blue]: Read and display a file with syntax highlighting
-- [bold blue]/load_session[/bold blue]: List and load a previous session as context
-- [bold blue]/forget_session[/bold blue]: Forget the currently loaded session context
-- [bold blue]/clear[/bold blue] or [bold blue]clr[/bold blue]: Clear the terminal screen for more space
-- [bold blue]/endit[/bold blue]: End the session and save conversation
-- [bold blue]/helpme[/bold blue]: Show this help message
-- [bold blue]/tools[/bold blue]: Enable or disable optional tools (e.g., websearch)
-- [bold blue]/models[/bold blue]: Show or update the selected model
-- [bold blue]'!'[/bold blue]: Run shell commands starting with '!' (e.g., !ls, !pwd)
+Available Commands:
+- /read <filepath>: Read and display a file with syntax highlighting
+- /load_session: List and load a previous session as context
+- /forget_session: Forget the currently loaded session context
+- /clear or clr: Clear the terminal screen for more space
+- /endit: End the session and save conversation
+- /helpme: Show this help message
+- /tools: Enable or disable optional tools (e.g., websearch)
+- /models: Show or update the selected model
+- '!': Run shell commands starting with '!' (e.g., !ls, !pwd)
 '''
+
+def print_help():
+    """Print the help text using Rich with a panel and styled text."""
+    # Create a Text object with markup enabled
+    text = Text.from_markup(
+        "[bold cyan]Available Commands:[/bold cyan]\n"
+        "- [bold blue]/read <filepath>[/bold blue]: Read and display a file with syntax highlighting\n"
+        "- [bold blue]/load_session[/bold blue]: List and load a previous session as context\n"
+        "- [bold blue]/forget_session[/bold blue]: Forget the currently loaded session context\n"
+        "- [bold blue]/clear[/bold blue] or [bold blue]clr[/bold blue]: Clear the terminal screen for more space\n"
+        "- [bold blue]/endit[/bold blue]: End the session and save conversation\n"
+        "- [bold blue]/helpme[/bold blue]: Show this help message\n"
+        "- [bold blue]/tools[/bold blue]: Enable or disable optional tools (e.g., websearch)\n"
+        "- [bold blue]/models[/bold blue]: Show or update the selected model\n"
+        "- [bold blue]'!'[/bold blue]: Run shell commands starting with '!' (e.g., !ls, !pwd)"
+    )
+    console.print(Panel(text, title="[bold green]Help[/bold green]", expand=False))
 
 read_file_cache = {}
 
@@ -439,7 +455,7 @@ def run(with_memory=True):
             # Only split for other tool commands if not /read
             cmd = shlex.split(query.strip())
             if cmd[0] == "/helpme":
-                console.print(Panel(Markdown(HELP_TEXT), title="[bold cyan]Help & Commands[/bold cyan]", border_style="cyan", expand=False))
+                print_help()
                 continue
             if cmd[0] == "/tools":
                 show_tools()
