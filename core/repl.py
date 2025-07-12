@@ -536,9 +536,6 @@ def run(with_memory=True):
             with open(session_file, "w") as f:
                 json.dump(session, f, indent=2)
             break
-        if query.strip().startswith("/helpme"):
-            console.print(HELP_TEXT)
-            continue
         if query.strip().startswith("/tools"):
             show_tools()
             continue
