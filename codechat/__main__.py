@@ -1,5 +1,5 @@
 def main():
-    from codechat.interface.cli import CLI
+    from cli import CLI
     cli = CLI()
     cli.run()
 

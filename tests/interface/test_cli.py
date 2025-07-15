@@ -1,4 +1,4 @@
-from codechat.interface.cli import CLI
+from cli import CLI
 from codechat.events.event_bus import bus
 from codechat.events import types
 
