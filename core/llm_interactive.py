@@ -1,5 +1,6 @@
 from core.sqlite_memory import SQLiteSessionMemory
 from core import model
+from core.user_config import load_system_prompt
 import os
 import math
 
@@ -13,6 +14,7 @@ class LLMInteractiveSession:
         self.persist = persist
         self.max_token_budget = max_token_budget or int(os.environ.get("CODEZ_MAX_TOKEN_BUDGET", 3000))
         self.token_estimator = token_estimator
+        self.system_prompt = load_system_prompt()
         if persist:
             if db_path is None:
                 db_path = os.path.join(os.path.dirname(__file__), '..', 'sessions', 'session_memory.db')
@@ -22,7 +24,7 @@ class LLMInteractiveSession:
 
     def ask(self, user_input):
         context_prompt = self.memory.get_context_prompt()
-        prompt = f"{context_prompt}\nUser: {user_input}\nModel:"
+        prompt = f"{self.system_prompt or ''}{context_prompt}\nUser: {user_input}\nModel:"
         response = model.query_ollama(prompt, self.model_name)
         self.memory.add_turn(user_input, response)
         return response

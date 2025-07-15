@@ -38,3 +38,26 @@ def clear_model_choice():
             del config["model"]
             with open(CONFIG_PATH, "w") as f:
                 json.dump(config, f)
+
+def save_system_prompt(prompt):
+    config = {}
+    os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, "r") as f:
+            try:
+                config = json.load(f)
+            except Exception:
+                config = {}
+    config["system_prompt"] = prompt
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(config, f)
+
+def load_system_prompt():
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, "r") as f:
+            try:
+                config = json.load(f)
+                return config.get("system_prompt")
+            except Exception:
+                return None
+    return None
