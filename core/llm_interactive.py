@@ -24,7 +24,7 @@ class LLMInteractiveSession:
 
     def ask(self, user_input):
         context_prompt = self.memory.get_context_prompt()
-        prompt = f"{self.system_prompt or ''}{context_prompt}\nUser: {user_input}\nModel:"
+        prompt = f"{self.system_prompt or ''}\n{context_prompt}\nUser: {user_input}\nModel:"
         response = model.query_ollama(prompt, self.model_name)
         self.memory.add_turn(user_input, response)
         return response

@@ -254,12 +254,13 @@ def print_welcome():
     selected_tip = random.choice(tips)
 
     # Adjusted message slightly as main title is now ASCII art
-    welcome_message = f"""\  🧠 [bold green]Welcome - We care about your privacy, you are in control here![/bold green]
+    welcome_message = f"""🧠 [bold green]Welcome - We care about your privacy, you are in control here![/bold green]
 
 Key Features:
 *   📂 Analyze code ([bold]Swift, Obj-C, Python, Kotlin, Java, JavaScripts, so on [/bold] via tree-sitter, other languages in general)
 *   🧾 Ask natural language questions about your code
 *   🧱 Interactive code input using triple backticks (```)
+*   🎯 Chat Mode: '[bold]/mode <ask|build>[/bold]' command. '[green]Ask[/green]' for query and '[cyan]Build[/cyan]' for modifying the code, debug, or fix errors.
 *   셸 Run shell commands with an exclamation mark prefix (e.g., [bold cyan]!ls[/bold cyan])
 *   🚪 Type [bold]'exit', '/endit',[/bold] or [bold]'quit'[/bold] to end the session
 

@@ -68,9 +68,6 @@ Default to clarity > cleverness, but stay concise
 ✅ Output Examples
 ✅ Good:
 
-python
-Copy
-Edit
 def reverse_linked_list(head):
     prev = None
     while head:

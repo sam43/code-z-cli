@@ -52,16 +52,9 @@ Fix the bug in the following Python function that returns None instead of a valu
 
 File Input:
 
-python
-Copy
-Edit
 def add(a, b):
     result = a + b
 Response:
-
-python
-Copy
-Edit
 def add(a, b):
     result = a + b
     return result
