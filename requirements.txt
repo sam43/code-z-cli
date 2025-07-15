@@ -25,4 +25,4 @@ typing-inspection==0.4.1
 platformdirs==4.2.0
 pyfiglet==0.8.post1
 platformdirs
-toml
+toml==0.10.2
