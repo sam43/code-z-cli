@@ -39,7 +39,7 @@ def clear_model_choice():
             with open(CONFIG_PATH, "w") as f:
                 json.dump(config, f)
 
-def save_system_prompt(prompt):
+def _save_config_value(key, value):
     config = {}
     os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
     if os.path.exists(CONFIG_PATH):
@@ -48,16 +48,22 @@ def save_system_prompt(prompt):
                 config = json.load(f)
             except Exception:
                 config = {}
-    config["system_prompt"] = prompt
+    config[key] = value
     with open(CONFIG_PATH, "w") as f:
         json.dump(config, f)
 
-def load_system_prompt():
+def _load_config_value(key):
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH, "r") as f:
             try:
                 config = json.load(f)
-                return config.get("system_prompt")
+                return config.get(key)
             except Exception:
                 return None
     return None
+
+def save_system_prompt(prompt):
+    _save_config_value("system_prompt", prompt)
+
+def load_system_prompt():
+    return _load_config_value("system_prompt")
