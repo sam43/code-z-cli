@@ -46,9 +46,9 @@ TOOLS = {
     "process": False
 }
 
-HELP_TEXT = '''\
-[bold cyan]Available Commands:[/bold cyan]
-- [bold blue]/read <filepath>[/bold blue]: Read and display a file with syntax highlighting
+HELP_TEXT = """[bold cyan]Available Commands:[/bold cyan]
+
+- [bold blue]/read [/bold blue]: Read and display a file with syntax highlighting
 - [bold blue]/load_session[/bold blue]: List and load a previous session as context
 - [bold blue]/forget_session[/bold blue]: Forget the currently loaded session context
 - [bold blue]/clear[/bold blue] or [bold blue]clr[/bold blue]: Clear the terminal screen for more space
@@ -57,8 +57,7 @@ HELP_TEXT = '''\
 - [bold blue]/mode <ask|build>[/bold blue]: Switch between 'ask' and 'build' modes for the AI's behavior
 - [bold blue]/tools[/bold blue]: Enable or disable optional tools (e.g., websearch)
 - [bold blue]/models[/bold blue]: Show or update the selected model
-- [bold blue]'!'[/bold blue]: Run shell commands starting with '!' (e.g., !ls, !pwd)
-'''
+- [bold blue]'!'[/bold blue]: Run shell commands starting with '!' (e.g., !ls, !pwd)"""
 
 read_file_cache = {}
 
@@ -453,7 +452,7 @@ def run(with_memory=True):
             # Only split for other tool commands if not /read
             cmd = shlex.split(query.strip())
             if cmd[0] == "/helpme":
-                console.print(Panel(Markdown(HELP_TEXT), title="[bold cyan]Help & Commands[/bold cyan]", border_style="cyan", expand=False))
+                console.print(Panel(HELP_TEXT, title="[bold cyan]Help & Commands[/bold cyan]", border_style="cyan", expand=False))
                 continue
             if cmd[0] == "/tools":
                 show_tools()
