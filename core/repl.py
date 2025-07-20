@@ -27,11 +27,21 @@ from core.system_prompts import system_prompt_agent, system_prompt_ask
 console = Console()
 
 def print_error(message: str, title: str = "Error"):
-    """Prints a Rich Panel formatted error message."""
+    """
+    Display an error message in a styled Rich Panel with a red border and custom title.
+    """
     console.print(Panel(Markdown(message), title=f"[bold red]{title}[/bold red]", border_style="red", expand=False))
 
 def get_system_prompt_for_mode(mode: str) -> str:
-    """Returns the appropriate system prompt based on the selected mode."""
+    """
+    Return the system prompt string corresponding to the specified mode.
+    
+    Parameters:
+        mode (str): The interaction mode, either "ask" or "build".
+    
+    Returns:
+        str: The system prompt for the given mode. Defaults to the "build" mode prompt if the mode is unrecognized.
+    """
     if mode.lower() == "ask":
         return system_prompt_ask
     elif mode.lower() == "build":
@@ -221,7 +231,10 @@ import random
 def print_welcome():
 
 # Generate ASCII art title
-    try:
+    """
+Displays the welcome message for the CodeZ CLI, including an ASCII art title, tagline, version, a randomly selected usage tip, and a summary of key features. Falls back to plain text if ASCII art rendering fails.
+"""
+try:
         f = Figlet(font='standard')  # 'slant' or 'standard' are good choices
         ascii_art_title = f.renderText("CodeZ CLI")
 
@@ -278,7 +291,12 @@ Type `/helpme` for a full list of commands.
 
 def run(with_memory=True):
     """
-    Main REPL loop. If with_memory is True, use contextual replies (session memory), else stateless mode.
+    Starts the interactive command-line REPL for AI-assisted coding, file management, and shell execution.
+    
+    The REPL supports contextual conversation with memory, session management, code input (including multiline and code blocks), shell command execution, file reading with syntax highlighting, tool toggling, and dynamic AI behavior modes ("ask" and "build"). It streams model responses, manages session persistence, and provides a rich user interface with error handling and help features.
+    
+    Parameters:
+        with_memory (bool): If True, enables contextual replies using session memory; if False, runs in stateless mode.
     """
     from core import model as model_mod
     from core.llm_interactive import LLMInteractiveSession

@@ -19,14 +19,11 @@ app = typer.Typer()
 @app.command("explain")
 def explain(path: str, function: str = None):
     """
-    Explain the content of a file or a specific function within that file.
-
-    Args:
-        path (str): The file path to explain.
-        function (str, optional): The specific function name to explain. If None, explain the whole file.
-
-    This function calls the summarizer to generate a detailed explanation,
-    handles errors gracefully, and outputs the result to the CLI.
+    Generates and displays an explanation for a file or a specific function within a file.
+    
+    Parameters:
+        path (str): Path to the file to be explained.
+        function (str, optional): Name of the function to explain. If not provided, explains the entire file.
     """
     try:
         result = summarizer.explain(path, function)
@@ -41,7 +38,9 @@ def explain(path: str, function: str = None):
 
 @app.command("chat")
 def chat():
-    """Interactive REPL to ask questions about code"""
+    """
+    Launches an interactive REPL session for asking questions about code.
+    """
     repl.run()
 
 def main():
