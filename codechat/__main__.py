@@ -1,14 +1,12 @@
-
 import sys
-import os
-
-# Add the parent directory to the Python path so we can import cli
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from cli import app
+from .cli import app
 
 def main():
-    app()
+    try:
+        app()
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
 
 if __name__ == "__main__":
     main()

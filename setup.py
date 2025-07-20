@@ -1,5 +1,11 @@
 from setuptools import setup, find_packages
-from version_utils import get_version
+import tomllib
+
+def get_version():
+    with open("pyproject.toml", "rb") as f:
+        data = tomllib.load(f)
+    return data["project"]["version"]
+
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()

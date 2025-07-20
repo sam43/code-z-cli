@@ -22,7 +22,7 @@ import time
 from datetime import datetime
 from rich.text import Text
 from pyfiglet import Figlet
-from version_utils import get_version
+from codechat.version_utils import get_version
 from core.system_prompts import system_prompt_agent, system_prompt_ask
 
 console = Console()
@@ -222,7 +222,10 @@ import random
 def print_welcome():
 
 # Generate ASCII art title
-    __version__ = get_version()
+    try:
+        __version__ = get_version()
+    except Exception:
+        __version__ = "unknown"
     try:
         f = Figlet(font='standard')  # 'slant' or 'standard' are good choices
         ascii_art_title = f.renderText("CodeZ CLI")
