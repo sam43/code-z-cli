@@ -22,6 +22,7 @@ import time
 from datetime import datetime
 from rich.text import Text
 from pyfiglet import Figlet
+from version_utils import get_version
 from core.system_prompts import system_prompt_agent, system_prompt_ask
 
 console = Console()
@@ -221,6 +222,7 @@ import random
 def print_welcome():
 
 # Generate ASCII art title
+    __version__ = get_version()
     try:
         f = Figlet(font='standard')  # 'slant' or 'standard' are good choices
         ascii_art_title = f.renderText("CodeZ CLI")
@@ -230,7 +232,7 @@ def print_welcome():
 
         # Tagline and version info
         tagline = Text("CodeZ CLI – When AI Takes a Break, We Don’t!", style="bold green")
-        version = Text("v0.2.0", style="bold cyan")
+        version = Text(f"v{__version__}", style="bold cyan")
 
         console.print(tagline, justify="center")
         console.print(version, justify="center")
@@ -239,7 +241,7 @@ def print_welcome():
         # Fallback text if Figlet fails
         console.print("[bold bright_magenta]CodeZ CLI[/bold bright_magenta]", justify="center", style="italic")
         console.print("[bold yellow]When AI Takes a Break, We Don’t![/bold yellow]", justify="center")
-        console.print("[cyan]v0.2.0[/cyan]", justify="center")
+        console.print(f"[cyan]v{__version__}[/cyan]", justify="center")
         print_error(f"Could not render Figlet title: {e}", "Display Warning")
     tips = [
         "Use `/read <filepath>` to load a file's content into the conversation.",

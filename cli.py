@@ -4,15 +4,6 @@ Interface layer: CLI, REPL, and event adapters.
 
 import typer
 from core import repl, summarizer
-from codechat.events.event_bus import bus
-from codechat.events import types
-from codechat.domain.conversation import Message, Conversation
-from codechat.data.session_repository import SessionRepository
-from core.user_config import save_system_prompt, clear_model_choice
-from rich.console import Console
-from rich.text import Text
-import toml
-import os
 
 app = typer.Typer()
 

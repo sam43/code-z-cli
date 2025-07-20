@@ -2,6 +2,9 @@ venv/
 build/
 *.egg-info/
 sessions/
+__pycache__/
+.pytest_cache/
+.zencoder/
 core/__pycache__/
 node_modules/
 codechat/tree-sitter-c
