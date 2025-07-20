@@ -22,6 +22,8 @@ import time
 from datetime import datetime
 from rich.text import Text
 from pyfiglet import Figlet
+from version_utils import get_version
+from core.system_prompts import system_prompt_agent, system_prompt_ask
 
 console = Console()
 
@@ -29,24 +31,34 @@ def print_error(message: str, title: str = "Error"):
     """Prints a Rich Panel formatted error message."""
     console.print(Panel(Markdown(message), title=f"[bold red]{title}[/bold red]", border_style="red", expand=False))
 
+def get_system_prompt_for_mode(mode: str) -> str:
+    """Returns the appropriate system prompt based on the selected mode."""
+    if mode.lower() == "ask":
+        return system_prompt_ask
+    elif mode.lower() == "build":
+        return system_prompt_agent
+    else:
+        # Default to build mode if an invalid mode is somehow set
+        return system_prompt_agent
+
 # TOOLS update for /process
 TOOLS = {
     "websearch": False,
     "process": False
 }
 
-HELP_TEXT = '''\
-[bold cyan]Available Commands:[/bold cyan]
-- [bold blue]/read <filepath>[/bold blue]: Read and display a file with syntax highlighting
+HELP_TEXT = """[bold cyan]Available Commands:[/bold cyan]
+
+- [bold blue]/read [/bold blue]: Read and display a file with syntax highlighting
 - [bold blue]/load_session[/bold blue]: List and load a previous session as context
 - [bold blue]/forget_session[/bold blue]: Forget the currently loaded session context
 - [bold blue]/clear[/bold blue] or [bold blue]clr[/bold blue]: Clear the terminal screen for more space
 - [bold blue]/endit[/bold blue]: End the session and save conversation
 - [bold blue]/helpme[/bold blue]: Show this help message
+- [bold blue]/mode <ask|build>[/bold blue]: Switch between 'ask' and 'build' modes for the AI's behavior
 - [bold blue]/tools[/bold blue]: Enable or disable optional tools (e.g., websearch)
 - [bold blue]/models[/bold blue]: Show or update the selected model
-- [bold blue]'!'[/bold blue]: Run shell commands starting with '!' (e.g., !ls, !pwd)
-'''
+- [bold blue]'!'[/bold blue]: Run shell commands starting with '!' (e.g., !ls, !pwd)"""
 
 read_file_cache = {}
 
@@ -210,6 +222,7 @@ import random
 def print_welcome():
 
 # Generate ASCII art title
+    __version__ = get_version()
     try:
         f = Figlet(font='standard')  # 'slant' or 'standard' are good choices
         ascii_art_title = f.renderText("CodeZ CLI")
@@ -219,7 +232,7 @@ def print_welcome():
 
         # Tagline and version info
         tagline = Text("CodeZ CLI – When AI Takes a Break, We Don’t!", style="bold green")
-        version = Text("v0.2.0", style="bold cyan")
+        version = Text(f"v{__version__}", style="bold cyan")
 
         console.print(tagline, justify="center")
         console.print(version, justify="center")
@@ -228,7 +241,7 @@ def print_welcome():
         # Fallback text if Figlet fails
         console.print("[bold bright_magenta]CodeZ CLI[/bold bright_magenta]", justify="center", style="italic")
         console.print("[bold yellow]When AI Takes a Break, We Don’t![/bold yellow]", justify="center")
-        console.print("[cyan]v0.2.0[/cyan]", justify="center")
+        console.print(f"[cyan]v{__version__}[/cyan]", justify="center")
         print_error(f"Could not render Figlet title: {e}", "Display Warning")
     tips = [
         "Use `/read <filepath>` to load a file's content into the conversation.",
@@ -242,12 +255,13 @@ def print_welcome():
     selected_tip = random.choice(tips)
 
     # Adjusted message slightly as main title is now ASCII art
-    welcome_message = f"""\  🧠 [bold green]Welcome - We care about your privacy, you are in control here![/bold green]
+    welcome_message = f"""🧠 [bold green]Welcome - We care about your privacy, you are in control here![/bold green]
 
 Key Features:
 *   📂 Analyze code ([bold]Swift, Obj-C, Python, Kotlin, Java, JavaScripts, so on [/bold] via tree-sitter, other languages in general)
 *   🧾 Ask natural language questions about your code
 *   🧱 Interactive code input using triple backticks (```)
+*   🎯 Chat Mode: '[bold]/mode <ask|build>[/bold]' command. '[green]Ask[/green]' for query and '[cyan]Build[/cyan]' for modifying the code, debug, or fix errors.
 *   셸 Run shell commands with an exclamation mark prefix (e.g., [bold cyan]!ls[/bold cyan])
 *   🚪 Type [bold]'exit', '/endit',[/bold] or [bold]'quit'[/bold] to end the session
 
@@ -311,6 +325,7 @@ def run(with_memory=True):
     websearch_prompted = False
     prompt_session = PromptSession()
     last_thinking = None  # Store last thinking process
+    current_mode = "build"  # Default mode
 
     # Session memory setup
     session_agent = LLMInteractiveSession(
@@ -439,7 +454,7 @@ def run(with_memory=True):
             # Only split for other tool commands if not /read
             cmd = shlex.split(query.strip())
             if cmd[0] == "/helpme":
-                console.print(Panel(Markdown(HELP_TEXT), title="[bold cyan]Help & Commands[/bold cyan]", border_style="cyan", expand=False))
+                console.print(Panel(HELP_TEXT, title="[bold cyan]Help & Commands[/bold cyan]", border_style="cyan", expand=False))
                 continue
             if cmd[0] == "/tools":
                 show_tools()
@@ -476,6 +491,17 @@ def run(with_memory=True):
                     console.print("[bold blue]----------------------[/bold blue]")
                 else:
                     console.print("[yellow]No thought process available for the last response.[/yellow]")
+                continue
+            elif cmd[0] == "/mode":
+                if len(cmd) < 2:
+                    print_error("Usage: /mode <ask|build>", title="Command Error")
+                    continue
+                new_mode = cmd[1].lower()
+                if new_mode in ["ask", "build"]:
+                    current_mode = new_mode
+                    console.print(f"✅ [green]Switched to {current_mode.capitalize()} mode.[/green]")
+                else:
+                    print_error(f"Unknown mode: `{new_mode}`. Available modes are 'ask' and 'build'.", title="Command Error")
                 continue
             # Add more tool commands here as needed
             if cmd[0] == "/forget_session":
@@ -618,25 +644,21 @@ def run(with_memory=True):
             except Exception as e:
                 web_content = f"[Web search failed: {e}]"
             context_str = "\n".join([f"User: {item['user']}\nModel: {item['response']}" for item in prev_context])
-            system_prompt = (
-                "You are a precise and honest code assistant who uses reasoning to respond to user queries. "
-                "Read the provided resource carefully and answer only based on the given context. "
-                "If you do not know, say so. Do not hallucinate or invent details. "
-                "Align your answer strictly with the resource and question. "
+
+            # Get base system prompt based on current mode
+            base_system_prompt = get_system_prompt_for_mode(current_mode)
+
+            # Combine base system prompt with websearch instructions
+            final_system_prompt = (
+                f"{base_system_prompt}\n"
                 "If you need more information, you are allowed to use the websearch tool to search the web for relevant content. "
                 "Use the websearch tool only if it is enabled by the user."
             )
-            full_prompt = f"{system_prompt}\n\n{context_str}\nWeb search result: {web_content}\nUser: {query}\nModel:"
+            full_prompt = f"{final_system_prompt}\n\n{context_str}\nWeb search result: {web_content}\nUser: {query}\nModel:"
         else:
-            # Update system prompt to be more coding-focused
-            system_prompt = (
-                "You are a precise and honest code assistant who uses reasoning to respond to user queries. "
-                "Focus on providing direct, practical coding solutions, code snippets, reasoning, and implementation details. "
-                "Avoid lengthy theoretical explanations unless specifically asked. "
-                "If you do not know, say so. Do not hallucinate or invent details. "
-                "Align your answer strictly with the resource, context, and question. "
-            )
-            full_prompt = f"{system_prompt}\n\n{context_str}\nUser: {query}\nModel:"
+            # Use the base system prompt for the selected mode
+            final_system_prompt = get_system_prompt_for_mode(current_mode)
+            full_prompt = f"{final_system_prompt}\n\n{context_str}\nUser: {query}\nModel:"
         stages = [
             "[bold cyan]Sending query to model...[/bold cyan]",
             "[bold cyan]Model is processing your request...[/bold cyan]",

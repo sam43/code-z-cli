@@ -67,10 +67,19 @@ You're all set! Time to start your first conversation:
 Just type this in your terminal:
 
 ```bash
-codez
+codez chat
 ```
 
 You should see a friendly welcome message! Now, just type your questions or commands.
+
+### Quick File Explanation:
+
+Want to quickly understand a file or function? Use the explain command:
+
+```bash
+codez explain path/to/your/file.py
+codez explain path/to/your/file.py --function my_function
+```
 
 ### Essential Commands (Your Chat Toolkit):
 
