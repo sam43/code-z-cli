@@ -22,7 +22,7 @@ import time
 from datetime import datetime
 from rich.text import Text
 from pyfiglet import Figlet
-from version_utils import get_version
+from codechat.version_utils import get_version
 from core.system_prompts import system_prompt_agent, system_prompt_ask
 
 console = Console()

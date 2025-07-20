@@ -1,4 +1,5 @@
-from cli import app
+import sys
+from .cli import app
 
 def main():
     try:
