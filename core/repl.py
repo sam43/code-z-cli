@@ -222,7 +222,10 @@ import random
 def print_welcome():
 
 # Generate ASCII art title
-    __version__ = get_version()
+    try:
+        __version__ = get_version()
+    except Exception:
+        __version__ = "unknown"
     try:
         f = Figlet(font='standard')  # 'slant' or 'standard' are good choices
         ascii_art_title = f.renderText("CodeZ CLI")

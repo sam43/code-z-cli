@@ -59,19 +59,33 @@ def test_installation():
         return False
     
     # Activate and install the package
-    activate_cmd = "source test_env/bin/activate" if os.name != 'nt' else "test_env\\Scripts\\activate"
-    install_cmd = f"{activate_cmd} && pip install dist/*.whl"
+    # Use python -m pip directly from the virtual environment
+    venv_python = "test_env/bin/python" if os.name != 'nt' else "test_env\\Scripts\\python"
     
+    # Find the wheel file explicitly
+    import glob
+    wheel_files = glob.glob("dist/*.whl")
+    if not wheel_files:
+        print("❌ No wheel file found in dist/ directory")
+        return False
+    if len(wheel_files) > 1:
+        print(f"⚠️  Multiple wheel files found, using: {wheel_files[0]}")
+    
+    install_cmd = f'"{venv_python}" -m pip install "{wheel_files[0]}"'
     if not run_command(install_cmd, "Installing package in test environment"):
         return False
     
     # Test the entry point
-    test_cmd = f"{activate_cmd} && codez --help"
+    # Test the entry point using virtual environment Python
+    test_cmd = f"{venv_python} -m codechat.__main__ --help"
     if not run_command(test_cmd, "Testing entry point"):
         return False
     
     # Clean up test environment
-    shutil.rmtree("test_env")
+    try:
+        shutil.rmtree("test_env")
+    except OSError as e:
+        print(f"⚠️  Warning: Could not clean up test environment: {e}")
     
     print("✅ Package installation test passed!")
     return True
