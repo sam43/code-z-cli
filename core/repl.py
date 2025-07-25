@@ -1,5 +1,22 @@
 # core/repl.py
 
+tips = [
+    "[bold blue]/read <filepath>[/bold blue] — Load a file's content into the conversation.",
+    "[bold blue]!ls[/bold blue] or any shell command — Run directly in the prompt!",
+    "[bold blue]/models[/bold blue] — See available LLMs or switch to a different one.",
+    "[bold blue]/forget_session[/bold blue] — Clear your conversation history/context.",
+    "[bold blue]```[/bold blue] — Enter code blocks by typing triple backticks, then paste/type code, then triple backticks again.",
+    "[bold blue]/helpme or /? [/bold blue] — Access help anytime.",
+    "[bold blue]/tools[/bold blue] — Toggle features like web search (if available).",
+    "[bold blue]/mode <ask|build>[/bold blue] — Instantly switch between Q&A and code editing modes.",
+    "[bold blue]/load_session[/bold blue] — Resume or load previous sessions.",
+    "[bold blue]/clear[/bold blue] or [bold blue]clr[/bold blue] — Clear the terminal for more space.",
+    "All output is rendered with beautiful markdown, code highlighting, and panels.",
+    "Paste or type multiline code blocks easily using triple backticks.",
+    "Your code never leaves your machine—100% privacy with local LLMs.",
+    "Analyze code in Python, Swift, C, Java, JS, and more (tree-sitter powered)."
+]
+
 import json
 import os
 from core import model
@@ -50,7 +67,7 @@ TOOLS = {
 HELP_TEXT = """[bold cyan]🚀 CodeZ CLI — Command Reference[/bold cyan]
 
 [bold green]General:[/bold green]
-  [bold blue]/helpme[/bold blue]         Show this help message
+  [bold blue]/helpme or '/?'[/bold blue]         Show this help message
   [bold blue]/endit[/bold blue]          End the session and save conversation
   [bold blue]/clear[/bold blue], [bold blue]clr[/bold blue]  Clear the terminal screen
   [bold blue]exit[/bold blue], [bold blue]quit[/bold blue]   Exit the REPL
@@ -71,7 +88,7 @@ HELP_TEXT = """[bold cyan]🚀 CodeZ CLI — Command Reference[/bold cyan]
 [bold green]Shell:[/bold green]
   [bold blue]!<command>[/bold blue]         Run shell commands directly (e.g., !ls, !pwd)
 
-[dim]Tip: Type /helpme at any time to see this list. For more features, see the welcome message or documentation.[/dim]
+[dim]Tip: Type /helpme or '/?' at any time to see this list. For more features, see the welcome message or documentation.[/dim]
 """
 
 read_file_cache = {}
@@ -260,22 +277,33 @@ def print_welcome():
         console.print("[bold yellow]When AI Takes a Break, We Don’t![/bold yellow]", justify="center")
         console.print(f"[cyan]v{__version__}[/cyan]", justify="center")
         print_error(f"Could not render Figlet title: {e}", "Display Warning")
-tips = [
-    "[bold blue]/read <filepath>[/bold blue] — Load a file's content into the conversation.",
-    "[bold blue]!ls[/bold blue] or any shell command — Run directly in the prompt!",
-    "[bold blue]/models[/bold blue] — See available LLMs or switch to a different one.",
-    "[bold blue]/forget_session[/bold blue] — Clear your conversation history/context.",
-    "[bold blue]```[/bold blue] — Enter code blocks by typing triple backticks, then paste/type code, then triple backticks again.",
-    "[bold blue]/helpme[/bold blue] — Access help anytime.",
-    "[bold blue]/tools[/bold blue] — Toggle features like web search (if available).",
-    "[bold blue]/mode <ask|build>[/bold blue] — Instantly switch between Q&A and code editing modes.",
-    "[bold blue]/load_session[/bold blue] — Resume or load previous sessions.",
-    "[bold blue]/clear[/bold blue] or [bold blue]clr[/bold blue] — Clear the terminal for more space.",
-    "All output is rendered with beautiful markdown, code highlighting, and panels.",
-    "Paste or type multiline code blocks easily using triple backticks.",
-    "Your code never leaves your machine—100% privacy with local LLMs.",
-    "Analyze code in Python, Swift, C, Java, JS, and more (tree-sitter powered)."
-]
+
+    # Show welcome message (features) directly after tagline and version
+    selected_tip = random.choice(tips)
+    key_features = [
+        "🗣️ [bold]Conversational AI REPL[/bold]: Chat with your code and get instant, context-aware answers.",
+        "🌈 [bold]Rich Terminal UI[/bold]: Beautiful markdown, code highlighting, and interactive panels.",
+        "💾 [bold]Session Memory[/bold]: Save, resume, and manage your coding conversations.",
+        "⚡ [bold]Shell Power[/bold]: Run shell commands directly in your chat (just start with `!`).",
+        "📄 [bold]File Explorer[/bold]: Instantly read and display code with syntax highlighting using `/read <filepath>`.",
+        "🤖 [bold]Local LLMs[/bold]: 100% privacy—your code never leaves your machine.",
+        "🧠 [bold]Code Analysis[/bold]: Deep code understanding for Python, Swift, C, Java, JS, and more (tree-sitter powered).",
+        "🔄 [bold]Mode Switching[/bold]: Instantly toggle between 'Ask' (Q&A) and 'Build' (code editing/debug) modes with `/mode <ask|build>`.",
+        "🛠️ [bold]Tool Toggling[/bold]: Enable/disable features like web search on demand with `/tools`.",
+        "📝 [bold]Multiline Code Input[/bold]: Paste or type code blocks easily with triple backticks.",
+        "📂 [bold]Session Management[/bold]: Load, forget, or clear session context with `/load_session`, `/forget_session`, `/clear`.",
+        "✨ [bold]Extensible & Open Source[/bold]: Built for privacy, hackability, and your workflow.",
+    ]
+    if len(key_features) > 5:
+        features_display = '\n'.join(f"*   {f}" for f in key_features[:7]) + "\n*   [dim]see more... (type '/helpme' or '/?')[/dim]"
+    else:
+        features_display = '\n'.join(f"*   {f}" for f in key_features)
+
+    welcome_message = f"""🧠 [bold green]Welcome - We care about your privacy, you are in control here![/bold green]\n\n[bold cyan]Key Features:[/bold cyan]\n{features_display}\n\n💡 [bold yellow]Tip of the session:[/bold yellow] {selected_tip}\n\nType `/helpme` or `/?` for a full list of commands."""
+    welcome_renderable = Text.from_markup(welcome_message)
+    console.print(Panel(welcome_renderable, title="[dim]Your AI Coding Assistant[/dim]", border_style="blue", expand=False, padding=(1,2)))
+    console.print() # Add a newline after the panel
+    # (Removed duplicate tips definition here)
 def print_tips():
     """Display all tips in a styled Rich panel."""
     tips_display = '\n'.join(f"[green]•[/green] {tip}" for tip in tips)
@@ -307,19 +335,19 @@ def print_tips():
     ]
     # Show only the first 7, then a 'see more...' if needed
     if len(key_features) > 5:
-        features_display = '\n'.join(f"*   {f}" for f in key_features[:7]) + "\n*   [dim]see more... (type /helpme)[/dim]"
+        features_display = '\n'.join(f"*   {f}" for f in key_features[:7]) + "\n*   [dim]see more... (type '/helpme' or '/?')[/dim]"
     else:
         features_display = '\n'.join(f"*   {f}" for f in key_features)
 
     welcome_message = f"""🧠 [bold green]Welcome - We care about your privacy, you are in control here![/bold green]
 
-[bold cyan]Key Features:[/bold cyan]
-{features_display}
+    [bold cyan]Key Features:[/bold cyan]
+    {features_display}
 
-💡 [bold yellow]Tip of the session:[/bold yellow] {selected_tip}
+    💡 [bold yellow]Tip of the session:[/bold yellow] {selected_tip}
 
-Type `/helpme` for a full list of commands.
-"""
+    Type `/helpme` or `/?` for a full list of commands.
+    """
     # Using Text.from_markup directly to ensure Rich tags are parsed.
     # This will render Rich tags but not Markdown syntax like lists.
     # from rich.text import Text # Already imported at top level
@@ -471,7 +499,7 @@ def run(with_memory=True):
                 continue
             # Only split for other tool commands if not /read
             cmd = shlex.split(query.strip())
-            if cmd[0] == "/helpme":
+            if cmd[0] == "/helpme" or "/?":
                 console.print(Panel(HELP_TEXT, title="[bold cyan]Help & Commands[/bold cyan]", border_style="cyan", expand=False))
                 continue
             if cmd[0] == "/tips":
@@ -530,7 +558,7 @@ def run(with_memory=True):
                 console.print("[yellow]Previous session context forgotten. You are now starting fresh.[/yellow]")
                 continue
             # Unknown tool command
-            print_error(f"Unknown tool command: `{cmd[0]}`\nType `/helpme` to see available commands.", title="Command Error")
+            print_error(f"Unknown tool command: `{cmd[0]}`\nType `/helpme` or `/?` to see available commands.", title="Command Error")
             continue
         # Handle shell commands starting with '!'
         if query.strip().startswith("!"):
@@ -567,7 +595,7 @@ def run(with_memory=True):
             with open(session_file, "w") as f:
                 json.dump(session, f, indent=2)
             break
-        if query.strip().startswith("/helpme"):
+        if query.strip().startswith("/helpme" or query.strip() == "/?"):
             console.print(HELP_TEXT)
             continue
         if query.strip().startswith("/tools"):
