@@ -31,17 +31,6 @@ def test_entry_point():
     
     print("✅ Basic entry point works!")
     
-    # Test explain command
-    success, stdout, stderr = run_command("codez explain --help")
-    if not success:
-        print(f"❌ Failed to run 'codez explain --help': {stderr}")
-        return False
-    
-    if "Explain the content of a file" not in stdout:
-        print(f"❌ Unexpected output from 'codez explain --help': {stdout}")
-        return False
-    
-    print("✅ Explain command works!")
     
     # Test chat command
     success, stdout, stderr = run_command("codez chat --help")
@@ -66,7 +55,6 @@ def main():
         print("\n🎉 All tests passed! CodeZ CLI is ready to use!")
         print("\nYou can now run:")
         print("  codez chat          # Start interactive chat")
-        print("  codez explain <file> # Explain a file")
         return 0
     else:
         print("\n❌ Some tests failed. Please check the installation.")

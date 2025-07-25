@@ -15,4 +15,4 @@ chmod +x ./run_codez.sh
 source ./venv/bin/activate
 
 # Run the main Python script with arguments passed to this script
-python cli.py chat
+python -m codechat

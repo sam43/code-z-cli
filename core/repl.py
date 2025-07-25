@@ -47,18 +47,32 @@ TOOLS = {
     "process": False
 }
 
-HELP_TEXT = """[bold cyan]Available Commands:[/bold cyan]
+HELP_TEXT = """[bold cyan]🚀 CodeZ CLI — Command Reference[/bold cyan]
 
-- [bold blue]/read [/bold blue]: Read and display a file with syntax highlighting
-- [bold blue]/load_session[/bold blue]: List and load a previous session as context
-- [bold blue]/forget_session[/bold blue]: Forget the currently loaded session context
-- [bold blue]/clear[/bold blue] or [bold blue]clr[/bold blue]: Clear the terminal screen for more space
-- [bold blue]/endit[/bold blue]: End the session and save conversation
-- [bold blue]/helpme[/bold blue]: Show this help message
-- [bold blue]/mode <ask|build>[/bold blue]: Switch between 'ask' and 'build' modes for the AI's behavior
-- [bold blue]/tools[/bold blue]: Enable or disable optional tools (e.g., websearch)
-- [bold blue]/models[/bold blue]: Show or update the selected model
-- [bold blue]'!'[/bold blue]: Run shell commands starting with '!' (e.g., !ls, !pwd)"""
+[bold green]General:[/bold green]
+  [bold blue]/helpme[/bold blue]         Show this help message
+  [bold blue]/endit[/bold blue]          End the session and save conversation
+  [bold blue]/clear[/bold blue], [bold blue]clr[/bold blue]  Clear the terminal screen
+  [bold blue]exit[/bold blue], [bold blue]quit[/bold blue]   Exit the REPL
+
+[bold green]Session & Context:[/bold green]
+  [bold blue]/load_session[/bold blue]   List and load a previous session as context
+  [bold blue]/forget_session[/bold blue] Forget the currently loaded session context
+
+[bold green]AI & Tools:[/bold green]
+  [bold blue]/mode <ask|build>[/bold blue]   Switch between 'ask' (Q&A) and 'build' (code editing/debug) modes
+  [bold blue]/models[/bold blue]            Show or update the selected model
+  [bold blue]/tools[/bold blue]             Enable or disable optional tools (e.g., websearch)
+
+[bold green]Code & Files:[/bold green]
+  [bold blue]/read <filepath>[/bold blue]   Read and display a file with syntax highlighting
+  [bold blue]```[/bold blue]                Start multiline code input (type ``` again to finish)
+
+[bold green]Shell:[/bold green]
+  [bold blue]!<command>[/bold blue]         Run shell commands directly (e.g., !ls, !pwd)
+
+[dim]Tip: Type /helpme at any time to see this list. For more features, see the welcome message or documentation.[/dim]
+"""
 
 read_file_cache = {}
 
@@ -246,27 +260,61 @@ def print_welcome():
         console.print("[bold yellow]When AI Takes a Break, We Don’t![/bold yellow]", justify="center")
         console.print(f"[cyan]v{__version__}[/cyan]", justify="center")
         print_error(f"Could not render Figlet title: {e}", "Display Warning")
-    tips = [
-        "Use `/read <filepath>` to load a file's content into the conversation.",
-        "Type `!ls` or any other shell command directly into the prompt!",
-        "Use `/models` to see available LLMs or switch to a different one.",
-        "Your conversation history provides context to the LLM. Use `/forget_session` to clear it.",
-        "Code blocks can be entered by typing ```, pasting your code, then ``` on a new line.",
-        "Access help anytime with the `/helpme` command.",
-        "Use `/tools` to toggle features like web search (if available)."
-    ]
+tips = [
+    "[bold blue]/read <filepath>[/bold blue] — Load a file's content into the conversation.",
+    "[bold blue]!ls[/bold blue] or any shell command — Run directly in the prompt!",
+    "[bold blue]/models[/bold blue] — See available LLMs or switch to a different one.",
+    "[bold blue]/forget_session[/bold blue] — Clear your conversation history/context.",
+    "[bold blue]```[/bold blue] — Enter code blocks by typing triple backticks, then paste/type code, then triple backticks again.",
+    "[bold blue]/helpme[/bold blue] — Access help anytime.",
+    "[bold blue]/tools[/bold blue] — Toggle features like web search (if available).",
+    "[bold blue]/mode <ask|build>[/bold blue] — Instantly switch between Q&A and code editing modes.",
+    "[bold blue]/load_session[/bold blue] — Resume or load previous sessions.",
+    "[bold blue]/clear[/bold blue] or [bold blue]clr[/bold blue] — Clear the terminal for more space.",
+    "All output is rendered with beautiful markdown, code highlighting, and panels.",
+    "Paste or type multiline code blocks easily using triple backticks.",
+    "Your code never leaves your machine—100% privacy with local LLMs.",
+    "Analyze code in Python, Swift, C, Java, JS, and more (tree-sitter powered)."
+]
+def print_tips():
+    """Display all tips in a styled Rich panel."""
+    tips_display = '\n'.join(f"[green]•[/green] {tip}" for tip in tips)
+    panel = Panel(
+        tips_display,
+        title="[bold cyan]💡 CodeZ CLI Tips[/bold cyan]",
+        border_style="green",
+        expand=False,
+        padding=(1,2)
+    )
+    console.print(panel)
+
     selected_tip = random.choice(tips)
 
-    # Adjusted message slightly as main title is now ASCII art
+    # Key features (<=5 lines, expandable with 'see more...')
+    key_features = [
+        "🗣️ [bold]Conversational AI REPL[/bold]: Chat with your code and get instant, context-aware answers.",
+        "🌈 [bold]Rich Terminal UI[/bold]: Beautiful markdown, code highlighting, and interactive panels.",
+        "💾 [bold]Session Memory[/bold]: Save, resume, and manage your coding conversations.",
+        "⚡ [bold]Shell Power[/bold]: Run shell commands directly in your chat (just start with `!`).",
+        "📄 [bold]File Explorer[/bold]: Instantly read and display code with syntax highlighting using `/read <filepath>`.",
+        "🤖 [bold]Local LLMs[/bold]: 100% privacy—your code never leaves your machine.",
+        "🧠 [bold]Code Analysis[/bold]: Deep code understanding for Python, Swift, C, Java, JS, and more (tree-sitter powered).",
+        "🔄 [bold]Mode Switching[/bold]: Instantly toggle between 'Ask' (Q&A) and 'Build' (code editing/debug) modes with `/mode <ask|build>`.",
+        "🛠️ [bold]Tool Toggling[/bold]: Enable/disable features like web search on demand with `/tools`.",
+        "📝 [bold]Multiline Code Input[/bold]: Paste or type code blocks easily with triple backticks.",
+        "📂 [bold]Session Management[/bold]: Load, forget, or clear session context with `/load_session`, `/forget_session`, `/clear`.",
+        "✨ [bold]Extensible & Open Source[/bold]: Built for privacy, hackability, and your workflow.",
+    ]
+    # Show only the first 7, then a 'see more...' if needed
+    if len(key_features) > 5:
+        features_display = '\n'.join(f"*   {f}" for f in key_features[:7]) + "\n*   [dim]see more... (type /helpme)[/dim]"
+    else:
+        features_display = '\n'.join(f"*   {f}" for f in key_features)
+
     welcome_message = f"""🧠 [bold green]Welcome - We care about your privacy, you are in control here![/bold green]
 
-Key Features:
-*   📂 Analyze code ([bold]Swift, Obj-C, Python, Kotlin, Java, JavaScripts, so on [/bold] via tree-sitter, other languages in general)
-*   🧾 Ask natural language questions about your code
-*   🧱 Interactive code input using triple backticks (```)
-*   🎯 Chat Mode: '[bold]/mode <ask|build>[/bold]' command. '[green]Ask[/green]' for query and '[cyan]Build[/cyan]' for modifying the code, debug, or fix errors.
-*   셸 Run shell commands with an exclamation mark prefix (e.g., [bold cyan]!ls[/bold cyan])
-*   🚪 Type [bold]'exit', '/endit',[/bold] or [bold]'quit'[/bold] to end the session
+[bold cyan]Key Features:[/bold cyan]
+{features_display}
 
 💡 [bold yellow]Tip of the session:[/bold yellow] {selected_tip}
 
@@ -336,39 +384,6 @@ def run(with_memory=True):
         persist=with_memory
     )
 
-    # Add: Paste code snippet interactively
-    def paste_code_snippet():
-        console.print("[cyan]Paste your code snippet below. Type 'END' on a new line to finish.[/cyan]")
-        lines = []
-        while True:
-            line = input()
-            if line.strip() == 'END':
-                break
-            lines.append(line)
-        code = '\n'.join(lines)
-        return code
-
-    import re
-    def clean_code_snippet(code: str) -> str:
-        """Remove line numbers from pasted code."""
-        lines = code.splitlines()
-        cleaned = []
-        for line in lines:
-            # Remove leading line numbers (e.g., ' 1 |', '12 ', '003:')
-            cleaned.append(re.sub(r"^\s*\d+[:|\s]", "", line))
-        return "\n".join(cleaned)
-
-    # New paste mode for code blocks
-    def paste_code_snippet_block():
-        console.print("[cyan]Paste your code below. Type 'END' on a new line to finish.[/cyan]")
-        lines = []
-        while True:
-            line = input()
-            if line.strip() == 'END':
-                break
-            lines.append(line)
-        code = '\n'.join(lines)
-        return clean_code_snippet(code)
 
     while True:
         with patch_stdout():
@@ -458,6 +473,9 @@ def run(with_memory=True):
             cmd = shlex.split(query.strip())
             if cmd[0] == "/helpme":
                 console.print(Panel(HELP_TEXT, title="[bold cyan]Help & Commands[/bold cyan]", border_style="cyan", expand=False))
+                continue
+            if cmd[0] == "/tips":
+                print_tips()
                 continue
             if cmd[0] == "/tools":
                 show_tools()
