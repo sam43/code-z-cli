@@ -1,4 +1,5 @@
 # core/repl.py
+from pathlib import Path
 
 tips = [
     "[bold blue]/read <filepath>[/bold blue] — Load a file's content into the conversation.",
@@ -591,7 +592,6 @@ def run(with_memory=True):
             elif cmd[0] == "/summarize":
                 try:
                     from core.project_analyzer import ProjectAnalyzer
-                    from pathlib import Path
                     # Support optional directory argument
                     if len(cmd) > 1:
                         target_dir = cmd[1]
