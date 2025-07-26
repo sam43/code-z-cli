@@ -21,6 +21,7 @@ tips = [
 import json
 import os
 from core import model
+from core.mode_manager import ModeManager, FileChange
 from core.stream_utils import stream_response
 from rich.console import Console
 from rich.syntax import Syntax
@@ -360,6 +361,31 @@ def print_tips():
 
 
 def run(with_memory=True):
+    # --- ModeManager integration ---
+    mode_manager = ModeManager()
+    # Try to load persistent permissions and pending changes
+    import pickle
+    PERSIST_PATH = os.path.join(SESSION_DIR, 'mode_manager_state.pkl')
+    if os.path.exists(PERSIST_PATH):
+        try:
+            with open(PERSIST_PATH, 'rb') as f:
+                state = pickle.load(f)
+                mode_manager.permissions = state.get('permissions', {})
+                mode_manager.global_permission = state.get('global_permission', None)
+                mode_manager.pending_changes = state.get('pending_changes', [])
+        except Exception as e:
+            print_error(f"Failed to load ModeManager state: {e}", title="ModeManager Load Error")
+
+    def persist_mode_manager():
+        try:
+            with open(PERSIST_PATH, 'wb') as f:
+                pickle.dump({
+                    'permissions': mode_manager.permissions,
+                    'global_permission': mode_manager.global_permission,
+                    'pending_changes': mode_manager.pending_changes,
+                }, f)
+        except Exception as e:
+            print_error(f"Failed to save ModeManager state: {e}", title="ModeManager Save Error")
     """
     Main REPL loop. If with_memory is True, use contextual replies (session memory), else stateless mode.
     """
@@ -418,6 +444,8 @@ def run(with_memory=True):
     esc_stop = False  # Flag to indicate ESC was pressed to stop all processing
     model_thread = None  # Track the model generation thread
     model_stop_event = None  # Event to signal thread cancellation
+    undo_stack = []
+    redo_stack = []
     while True:
         try:
             with patch_stdout():
@@ -583,11 +611,109 @@ def run(with_memory=True):
                     print_error("Usage: /mode <ask|build>", title="Command Error")
                     continue
                 new_mode = cmd[1].lower()
-                if new_mode in ["ask", "build"]:
-                    current_mode = new_mode
-                    console.print(f"✅ [green]Switched to {current_mode.capitalize()} mode.[/green]")
+                msg = mode_manager.set_mode(new_mode)
+                current_mode = new_mode
+                persist_mode_manager()
+                console.print(msg)
+                continue
+            elif cmd[0] == "/edit":
+                if not mode_manager.is_build_mode():
+                    console.print("[yellow]Not in build mode. Use /mode build first.[/yellow]")
+                    continue
+                if len(cmd) < 2:
+                    console.print("Usage: /edit <file>")
+                    continue
+                file_path = cmd[1]
+                try:
+                    orig = open(file_path, encoding="utf-8").read()
+                except Exception:
+                    orig = ""
+                console.print("Enter new content for the file. End input with a single line containing only 'END'.")
+                lines = []
+                while True:
+                    l = console.input()
+                    if l.strip() == "END":
+                        break
+                    lines.append(l)
+                new_content = "\n".join(lines)
+                change = FileChange(file_path, orig, new_content, "edit")
+                mode_manager.add_pending_change(change)
+                diff = change.get_diff()
+                console.print(mode_manager.request_permission_message(file_path, "edit", diff))
+                resp = console.input("Your response: ")
+                allowed, msg = mode_manager.handle_permission_response(resp, file_path)
+                console.print(msg)
+                if allowed:
+                    if mode_manager.apply_change(change):
+                        undo_stack.append(change)
+                        persist_mode_manager()
+                        console.print(f"[green]Change applied to {file_path}.[/green]")
+                    else:
+                        console.print("[red]Permission denied or error applying change.[/red]")
                 else:
-                    print_error(f"Unknown mode: `{new_mode}`. Available modes are 'ask' and 'build'.", title="Command Error")
+                    console.print("[yellow]Change not applied.[/yellow]")
+                continue
+            elif cmd[0] == "/review_changes":
+                # List all pending changes
+                changes = mode_manager.list_pending_changes()
+                if not changes:
+                    console.print("[yellow]No pending changes.[/yellow]")
+                for idx, ch in enumerate(changes):
+                    status = "[green]applied[/green]" if ch.applied else "[red]pending[/red]"
+                    console.print(f"[cyan]{idx}.[/cyan] {ch.file_path} [{status}]")
+                    diff = ch.get_diff()
+                    console.print(Panel(diff[:1000] + ("..." if len(diff) > 1000 else ""), title="Diff Preview"))
+                continue
+            elif cmd[0] == "/apply_change":
+                # /apply_change <idx>
+                changes = mode_manager.list_pending_changes()
+                if len(cmd) < 2 or not cmd[1].isdigit():
+                    console.print("Usage: /apply_change <index>")
+                    continue
+                idx = int(cmd[1])
+                if idx < 0 or idx >= len(changes):
+                    console.print("Invalid change index.")
+                    continue
+                ch = changes[idx]
+                if mode_manager.apply_change(ch):
+                    undo_stack.append(ch)
+                    persist_mode_manager()
+                    console.print(f"[green]Change applied to {ch.file_path}.[/green]")
+                else:
+                    console.print("[red]Change not applied (permission denied or error).[/red]")
+                continue
+            elif cmd[0] == "/undo_change":
+                if not undo_stack:
+                    console.print("[yellow]Nothing to undo.[/yellow]")
+                    continue
+                ch = undo_stack.pop()
+                if mode_manager.revert_change(ch):
+                    redo_stack.append(ch)
+                    persist_mode_manager()
+                    console.print(f"[green]Change reverted for {ch.file_path}.[/green]")
+                else:
+                    console.print("[red]Failed to revert change.[/red]")
+                continue
+            elif cmd[0] == "/redo_change":
+                if not redo_stack:
+                    console.print("[yellow]Nothing to redo.[/yellow]")
+                    continue
+                ch = redo_stack.pop()
+                if mode_manager.apply_change(ch):
+                    undo_stack.append(ch)
+                    persist_mode_manager()
+                    console.print(f"[green]Change re-applied to {ch.file_path}.[/green]")
+                else:
+                    console.print("[red]Failed to re-apply change.[/red]")
+                continue
+            elif cmd[0] == "/accept_all_changes":
+                changes = mode_manager.list_pending_changes()
+                for ch in changes:
+                    if not ch.applied:
+                        mode_manager.apply_change(ch)
+                        undo_stack.append(ch)
+                persist_mode_manager()
+                console.print("[green]All pending changes applied.[/green]")
                 continue
             elif cmd[0] == "/summarize":
                 try:
@@ -653,6 +779,7 @@ def run(with_memory=True):
         if not query.strip():
             continue
         if query.strip().lower() in ["exit", "bye"]:
+            persist_mode_manager()
             console.print("[yellow]Session ended. Saving context...[/yellow]")
             ensure_session_dir()
             with open(session_file, "w") as f:
