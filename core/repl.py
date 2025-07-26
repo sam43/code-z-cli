@@ -592,20 +592,25 @@ def run(with_memory=True):
                 try:
                     from core.project_analyzer import ProjectAnalyzer
                     from pathlib import Path
-                    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-                    out_path = os.path.join(project_root, 'reports', 'SUMMARY.md')
-                    console.print("[cyan]Analyzing project, please wait...[/cyan]")
+                    # Support optional directory argument
+                    if len(cmd) > 1:
+                        target_dir = cmd[1]
+                    else:
+                        target_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+                    target_dir = os.path.abspath(os.path.expanduser(target_dir))
+                    if not os.path.isdir(target_dir):
+                        print_error(f"Directory not found: {target_dir}", title="Summarize Error")
+                        continue
+                    project_name = os.path.basename(os.path.normpath(target_dir))
+                    reports_dir = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'reports')
+                    Path(reports_dir).mkdir(parents=True, exist_ok=True)
+                    out_path = os.path.join(reports_dir, f'SUMMARY_{project_name}.md')
+                    console.print(f"[cyan]Analyzing project: {target_dir}, please wait...[/cyan]")
                     analyzer = ProjectAnalyzer()
-                    summary = analyzer.analyze_directory(project_root)
+                    summary = analyzer.analyze_directory(target_dir)
                     report = analyzer.generate_summary_report(summary)
-                    
-                    # Ensure the output directory exists
-                    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-                    
-                    # Write the report to file
                     with open(out_path, 'w', encoding='utf-8') as f:
                         f.write(report)
-                    
                     console.print(f"[green]Project summary generated at [bold]{out_path}[/bold].[/green]")
                 except Exception as e:
                     print_error(f"Failed to generate project summary: {e}", title="Summarize Error")

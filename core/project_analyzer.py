@@ -46,8 +46,22 @@ class ProjectAnalyzer:
         }
 
     def should_ignore(self, path: Path) -> bool:
+        # Skip all dot-directories (e.g., .venv, .git, .mypy_cache, etc.)
         if path.is_dir():
-            return path.name in self.ignore_patterns['dirs']
+            if path.name in self.ignore_patterns['dirs']:
+                return True
+            if path.name.startswith('.'):
+                return True
+        # Check .gitignore rules if loaded
+        if hasattr(self, '_gitignore_rules') and self._gitignore_rules:
+            rel_path = str(path.relative_to(self._gitignore_root)) if hasattr(self, '_gitignore_root') else str(path)
+            for rule in self._gitignore_rules:
+                if rule.endswith('/'):
+                    # Directory rule
+                    if rel_path.startswith(rule.rstrip('/')):
+                        return True
+                elif rule and rule in rel_path:
+                    return True
         for pattern in self.ignore_patterns['files']:
             if pattern.startswith('*.'):
                 if path.suffix == pattern[1:]:
@@ -67,6 +81,17 @@ class ProjectAnalyzer:
         root_path = Path(directory).resolve()
         if not root_path.exists():
             raise FileNotFoundError(f"Directory {directory} does not exist")
+        # Load .gitignore if present
+        self._gitignore_rules = []
+        self._gitignore_root = root_path
+        gitignore_path = root_path / '.gitignore'
+        if gitignore_path.exists():
+            with open(gitignore_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    self._gitignore_rules.append(line)
         analysis = {
             'project_name': root_path.name,
             'root_path': str(root_path),
@@ -105,10 +130,15 @@ class ProjectAnalyzer:
         return analysis
 
     def _walk_directory(self, root_path: Path):
+        # Use os.walk for better control over directory recursion
         try:
-            for item in root_path.rglob('*'):
-                if item.is_file() and not self.should_ignore(item):
-                    yield item
+            for dirpath, dirnames, filenames in os.walk(root_path):
+                # Remove ignored directories in-place so os.walk doesn't recurse into them
+                dirnames[:] = [d for d in dirnames if not self.should_ignore(Path(dirpath) / d)]
+                for filename in filenames:
+                    file_path = Path(dirpath) / filename
+                    if not self.should_ignore(file_path):
+                        yield file_path
         except PermissionError:
             print(f"Permission denied: {root_path}")
 
