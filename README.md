@@ -18,6 +18,12 @@ Whether you're learning a new language, need a quick code snippet, or want to un
 *   🌐 **Web-Savvy (Optional):** Enable a web search tool to pull in external knowledge.
 *   🧐 **Code Analysis (Swift/C):** Uses `tree-sitter` for deeper insights into Swift and C codebases (requires a small helper library).
 
+## There'sMore :
+- **Model Management**: Easily switch between local LLMs using `/models` or `/model` commands at any time.
+- **Automatic Model Download**: If no Ollama models are found, the CLI will prompt you to download and run the default model (`qwen2.5-coder:1.5b-instruct`).
+- **Session Memory**: Save, resume, and manage your coding conversations.
+- **Extensible & Open Source**: Built for privacy, hackability, and your workflow.
+
 ---
 
 ## 🚀 Getting Started: Your First Chat in Minutes! 🚀
