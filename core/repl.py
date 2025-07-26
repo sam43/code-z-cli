@@ -1,4 +1,5 @@
 # core/repl.py
+from pathlib import Path
 
 tips = [
     "[bold blue]/read <filepath>[/bold blue] — Load a file's content into the conversation.",
@@ -20,6 +21,7 @@ tips = [
 import json
 import os
 from core import model
+from core.mode_manager import ModeManager, FileChange
 from core.stream_utils import stream_response
 from rich.console import Console
 from rich.syntax import Syntax
@@ -80,6 +82,7 @@ HELP_TEXT = """[bold cyan]🚀 CodeZ CLI — Command Reference[/bold cyan]
   [bold blue]/mode <ask|build>[/bold blue]   Switch between 'ask' (Q&A) and 'build' (code editing/debug) modes
   [bold blue]/models[/bold blue]            Show or update the selected model
   [bold blue]/tools[/bold blue]             Enable or disable optional tools (e.g., websearch)
+  [bold blue]/summarize[/bold blue]         Analyze the project and generate a markdown summary report
 
 [bold green]Code & Files:[/bold green]
   [bold blue]/read <filepath>[/bold blue]   Read and display a file with syntax highlighting
@@ -358,6 +361,31 @@ def print_tips():
 
 
 def run(with_memory=True):
+    # --- ModeManager integration ---
+    mode_manager = ModeManager()
+    # Try to load persistent permissions and pending changes
+    import pickle
+    PERSIST_PATH = os.path.join(SESSION_DIR, 'mode_manager_state.pkl')
+    if os.path.exists(PERSIST_PATH):
+        try:
+            with open(PERSIST_PATH, 'rb') as f:
+                state = pickle.load(f)
+                mode_manager.permissions = state.get('permissions', {})
+                mode_manager.global_permission = state.get('global_permission', None)
+                mode_manager.pending_changes = state.get('pending_changes', [])
+        except Exception as e:
+            print_error(f"Failed to load ModeManager state: {e}", title="ModeManager Load Error")
+
+    def persist_mode_manager():
+        try:
+            with open(PERSIST_PATH, 'wb') as f:
+                pickle.dump({
+                    'permissions': mode_manager.permissions,
+                    'global_permission': mode_manager.global_permission,
+                    'pending_changes': mode_manager.pending_changes,
+                }, f)
+        except Exception as e:
+            print_error(f"Failed to save ModeManager state: {e}", title="ModeManager Save Error")
     """
     Main REPL loop. If with_memory is True, use contextual replies (session memory), else stateless mode.
     """
@@ -416,6 +444,8 @@ def run(with_memory=True):
     esc_stop = False  # Flag to indicate ESC was pressed to stop all processing
     model_thread = None  # Track the model generation thread
     model_stop_event = None  # Event to signal thread cancellation
+    undo_stack = []
+    redo_stack = []
     while True:
         try:
             with patch_stdout():
@@ -581,11 +611,223 @@ def run(with_memory=True):
                     print_error("Usage: /mode <ask|build>", title="Command Error")
                     continue
                 new_mode = cmd[1].lower()
-                if new_mode in ["ask", "build"]:
-                    current_mode = new_mode
-                    console.print(f"✅ [green]Switched to {current_mode.capitalize()} mode.[/green]")
+                msg = mode_manager.set_mode(new_mode)
+                current_mode = new_mode
+                persist_mode_manager()
+                console.print(msg)
+                continue
+            elif cmd[0] in ("/fix", "/add", "/remove"):
+                if not mode_manager.is_build_mode():
+                    console.print("[yellow]Not in build mode. Use /mode build first.[/yellow]")
+                    continue
+                if len(cmd) < 3:
+                    console.print(f"Usage: {cmd[0]} <file> <your request>")
+                    continue
+                file_path = cmd[1]
+                user_request = " ".join(cmd[2:])
+                try:
+                    orig = open(file_path, encoding="utf-8").read()
+                except Exception:
+                    orig = ""
+                # --- Real LLM-driven code change ---
+                # LLM prompt: ask for only the changed code, not markdown or code blocks
+                llm_prompt = (
+                    f"You are an expert code editor. User request: {user_request}\n"
+                    f"Current file content:\n{orig}\n"
+                    "Respond with the new file content only, as plain text. Do NOT use markdown or code block formatting."
+                )
+                try:
+                    from core import model as model_mod
+                    selected_model = load_model_choice() or "deepseek-r1:latest"
+                    new_content = model_mod.query_ollama(llm_prompt, selected_model)
+                    # Remove accidental code block markers if present
+                    if new_content.strip().startswith("```"):
+                        new_content = new_content.strip().lstrip("`python").strip("`").strip()
+                except Exception as e:
+                    console.print(f"[red]LLM error: {e}. Using fallback stub.[/red]")
+                    if cmd[0] == "/fix":
+                        new_content = orig + f"\n# FIX REQUEST: {user_request}\n"
+                    elif cmd[0] == "/add":
+                        new_content = orig + f"\n# ADD REQUEST: {user_request}\n"
+                    elif cmd[0] == "/remove":
+                        new_content = orig + f"\n# REMOVE REQUEST: {user_request}\n"
+                change = FileChange(file_path, orig, new_content, cmd[0][1:])
+                mode_manager.add_pending_change(change)
+                # Enhanced diff preview with rich
+                from rich.syntax import Syntax
+                from rich.panel import Panel
+                diff = change.get_diff()
+                syntax = Syntax(diff, "diff", theme="monokai", line_numbers=False, word_wrap=True)
+                console.print(Panel(syntax, title="Diff Preview", border_style="cyan"))
+                # --- Inline terminal permission menu ---
+                options = [
+                    ("accept once", "Accept once"),
+                    ("accept all", "Accept all for this file"),
+                    ("accept global", "Accept all for all files"),
+                    ("reject", "Reject this change"),
+                    ("show full", "Show full diff")
+                ]
+                selected = 0
+                while True:
+                    console.print("\n[bold cyan]BUILD MODE: Permission Required[/bold cyan]")
+                    console.print(f"File: [bold]{file_path}[/bold]  Operation: [bold]{cmd[0][1:]}[/bold]")
+                    for idx, (val, label) in enumerate(options):
+                        style = "bold cyan" if idx == selected else ""
+                        prefix = "→ " if idx == selected else "  "
+                        console.print(f"{prefix}[{val}] ", style=style, end="")
+                        console.print(label, style=style)
+                    console.print("\nUse [bold]up/down[/bold] arrows then [bold]Enter[/bold] to select.")
+                    key = console.input("Select option (u/d/Enter): ").strip().lower()
+                    if key in ("u", "up") and selected > 0:
+                        selected -= 1
+                    elif key in ("d", "down") and selected < len(options) - 1:
+                        selected += 1
+                    elif key == "" or key == "enter":
+                        break
+                # Hide permission block by clearing screen section
+                console.clear()  # Optionally, use console.clear() or print blank lines
+                result = options[selected][0]
+                allowed, msg = mode_manager.handle_permission_response(result, file_path)
+                # --- Logging/audit trail ---
+                import datetime
+                with open(os.path.join(SESSION_DIR, "edit_audit.log"), "a") as logf:
+                    logf.write(f"[{datetime.datetime.now()}] {cmd[0][1:].upper()} {file_path} | {user_request} | {result} | {msg}\n")
+                console.print(msg)
+                # Autonomous file/folder creation for test tasks
+                import re
+                def is_test_task(request):
+                    return bool(re.search(r"unit test|test case|write test|add test", request, re.I))
+                def get_test_file_path(src_path):
+                    p = Path(src_path)
+                    if p.name.startswith("test_"):
+                        return str(p)
+                    return str(p.parent / ("test_" + p.name))
+                if allowed:
+                    # If the user request is for a test, create a test file/folder as needed
+                    if is_test_task(user_request):
+                        test_file = get_test_file_path(file_path)
+                        test_dir = os.path.dirname(test_file)
+                        if not os.path.exists(test_dir):
+                            os.makedirs(test_dir, exist_ok=True)
+                        with open(test_file, "w", encoding="utf-8") as f:
+                            f.write(new_content)
+                        undo_stack.append(change)
+                        persist_mode_manager()
+                        console.print(f"[green]New test file created: {test_file}.[/green]")
+                        with open(os.path.join(SESSION_DIR, "edit_audit.log"), "a") as logf:
+                            logf.write(f"[{datetime.datetime.now()}] CREATED {test_file}\n")
+                    elif not os.path.exists(file_path):
+                        with open(file_path, "w", encoding="utf-8") as f:
+                            f.write(new_content)
+                        undo_stack.append(change)
+                        persist_mode_manager()
+                        console.print(f"[green]New file created: {file_path}.[/green]")
+                        with open(os.path.join(SESSION_DIR, "edit_audit.log"), "a") as logf:
+                            logf.write(f"[{datetime.datetime.now()}] CREATED {file_path}\n")
+                    elif mode_manager.apply_change(change):
+                        undo_stack.append(change)
+                        persist_mode_manager()
+                        console.print(f"[green]Change applied to {file_path}.[/green]")
+                        with open(os.path.join(SESSION_DIR, "edit_audit.log"), "a") as logf:
+                            logf.write(f"[{datetime.datetime.now()}] APPLIED {file_path}\n")
+                    else:
+                        console.print("[red]Permission denied or error applying change.[/red]")
                 else:
-                    print_error(f"Unknown mode: `{new_mode}`. Available modes are 'ask' and 'build'.", title="Command Error")
+                    console.print("[yellow]Change not applied.[/yellow]")
+                # LLM clarification: if the LLM output contains a special marker, prompt user for more info
+                if "[NEED_USER_INPUT]" in new_content:
+                    clarification = console.input("[bold yellow]LLM needs more info: Please clarify your request: [/bold yellow]")
+                    # Re-run the command with the clarification
+                    cmd.append(clarification)
+                    continue
+                continue
+            elif cmd[0] == "/review_changes":
+                # List all pending changes
+                changes = mode_manager.list_pending_changes()
+                if not changes:
+                    console.print("[yellow]No pending changes.[/yellow]")
+                for idx, ch in enumerate(changes):
+                    status = "[green]applied[/green]" if ch.applied else "[red]pending[/red]"
+                    console.print(f"[cyan]{idx}.[/cyan] {ch.file_path} [{status}]")
+                    diff = ch.get_diff()
+                    console.print(Panel(diff[:1000] + ("..." if len(diff) > 1000 else ""), title="Diff Preview"))
+                continue
+            elif cmd[0] == "/apply_change":
+                # /apply_change <idx>
+                changes = mode_manager.list_pending_changes()
+                if len(cmd) < 2 or not cmd[1].isdigit():
+                    console.print("Usage: /apply_change <index>")
+                    continue
+                idx = int(cmd[1])
+                if idx < 0 or idx >= len(changes):
+                    console.print("Invalid change index.")
+                    continue
+                ch = changes[idx]
+                if mode_manager.apply_change(ch):
+                    undo_stack.append(ch)
+                    persist_mode_manager()
+                    console.print(f"[green]Change applied to {ch.file_path}.[/green]")
+                else:
+                    console.print("[red]Change not applied (permission denied or error).[/red]")
+                continue
+            elif cmd[0] == "/undo_change":
+                if not undo_stack:
+                    console.print("[yellow]Nothing to undo.[/yellow]")
+                    continue
+                ch = undo_stack.pop()
+                if mode_manager.revert_change(ch):
+                    redo_stack.append(ch)
+                    persist_mode_manager()
+                    console.print(f"[green]Change reverted for {ch.file_path}.[/green]")
+                else:
+                    console.print("[red]Failed to revert change.[/red]")
+                continue
+            elif cmd[0] == "/redo_change":
+                if not redo_stack:
+                    console.print("[yellow]Nothing to redo.[/yellow]")
+                    continue
+                ch = redo_stack.pop()
+                if mode_manager.apply_change(ch):
+                    undo_stack.append(ch)
+                    persist_mode_manager()
+                    console.print(f"[green]Change re-applied to {ch.file_path}.[/green]")
+                else:
+                    console.print("[red]Failed to re-apply change.[/red]")
+                continue
+            elif cmd[0] == "/accept_all_changes":
+                changes = mode_manager.list_pending_changes()
+                for ch in changes:
+                    if not ch.applied:
+                        mode_manager.apply_change(ch)
+                        undo_stack.append(ch)
+                persist_mode_manager()
+                console.print("[green]All pending changes applied.[/green]")
+                continue
+            elif cmd[0] == "/summarize":
+                try:
+                    from core.project_analyzer import ProjectAnalyzer
+                    # Support optional directory argument
+                    if len(cmd) > 1:
+                        target_dir = cmd[1]
+                    else:
+                        target_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+                    target_dir = os.path.abspath(os.path.expanduser(target_dir))
+                    if not os.path.isdir(target_dir):
+                        print_error(f"Directory not found: {target_dir}", title="Summarize Error")
+                        continue
+                    project_name = os.path.basename(os.path.normpath(target_dir))
+                    reports_dir = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'reports')
+                    Path(reports_dir).mkdir(parents=True, exist_ok=True)
+                    out_path = os.path.join(reports_dir, f'SUMMARY_{project_name}.md')
+                    console.print(f"[cyan]Analyzing project: {target_dir}, please wait...[/cyan]")
+                    analyzer = ProjectAnalyzer()
+                    summary = analyzer.analyze_directory(target_dir)
+                    report = analyzer.generate_summary_report(summary)
+                    with open(out_path, 'w', encoding='utf-8') as f:
+                        f.write(report)
+                    console.print(f"[green]Project summary generated at [bold]{out_path}[/bold].[/green]")
+                except Exception as e:
+                    print_error(f"Failed to generate project summary: {e}", title="Summarize Error")
                 continue
             # Add more tool commands here as needed
             if cmd[0] == "/forget_session":
@@ -625,6 +867,7 @@ def run(with_memory=True):
         if not query.strip():
             continue
         if query.strip().lower() in ["exit", "bye"]:
+            persist_mode_manager()
             console.print("[yellow]Session ended. Saving context...[/yellow]")
             ensure_session_dir()
             with open(session_file, "w") as f:
