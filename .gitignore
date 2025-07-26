@@ -6,6 +6,7 @@ __pycache__/
 .pytest_cache/
 .zencoder/
 core/__pycache__/
+reports/
 node_modules/
 codechat/tree-sitter-c
 codechat/tree-sitter-swift

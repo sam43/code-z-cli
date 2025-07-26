@@ -80,6 +80,7 @@ HELP_TEXT = """[bold cyan]🚀 CodeZ CLI — Command Reference[/bold cyan]
   [bold blue]/mode <ask|build>[/bold blue]   Switch between 'ask' (Q&A) and 'build' (code editing/debug) modes
   [bold blue]/models[/bold blue]            Show or update the selected model
   [bold blue]/tools[/bold blue]             Enable or disable optional tools (e.g., websearch)
+  [bold blue]/summarize[/bold blue]         Analyze the project and generate a markdown summary report
 
 [bold green]Code & Files:[/bold green]
   [bold blue]/read <filepath>[/bold blue]   Read and display a file with syntax highlighting
@@ -586,6 +587,28 @@ def run(with_memory=True):
                     console.print(f"✅ [green]Switched to {current_mode.capitalize()} mode.[/green]")
                 else:
                     print_error(f"Unknown mode: `{new_mode}`. Available modes are 'ask' and 'build'.", title="Command Error")
+                continue
+            elif cmd[0] == "/summarize":
+                try:
+                    from core.project_analyzer import ProjectAnalyzer
+                    from pathlib import Path
+                    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+                    out_path = os.path.join(project_root, 'reports', 'SUMMARY.md')
+                    console.print("[cyan]Analyzing project, please wait...[/cyan]")
+                    analyzer = ProjectAnalyzer()
+                    summary = analyzer.analyze_directory(project_root)
+                    report = analyzer.generate_summary_report(summary)
+                    
+                    # Ensure the output directory exists
+                    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+                    
+                    # Write the report to file
+                    with open(out_path, 'w', encoding='utf-8') as f:
+                        f.write(report)
+                    
+                    console.print(f"[green]Project summary generated at [bold]{out_path}[/bold].[/green]")
+                except Exception as e:
+                    print_error(f"Failed to generate project summary: {e}", title="Summarize Error")
                 continue
             # Add more tool commands here as needed
             if cmd[0] == "/forget_session":
