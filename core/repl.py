@@ -68,9 +68,9 @@ HELP_TEXT = """[bold cyan]🚀 CodeZ CLI — Command Reference[/bold cyan]
 
 [bold green]General:[/bold green]
   [bold blue]/helpme or '/?'[/bold blue]         Show this help message
-  [bold blue]/endit[/bold blue]          End the session and save conversation
+  [bold blue]'exit' or 'bye' [/bold blue]          End the session and save conversation
   [bold blue]/clear[/bold blue], [bold blue]clr[/bold blue]  Clear the terminal screen
-  [bold blue]exit[/bold blue], [bold blue]quit[/bold blue]   Exit the REPL
+  [bold blue]exit[/bold blue], [bold blue]'bye'[/bold blue]   Exit the REPL
 
 [bold green]Session & Context:[/bold green]
   [bold blue]/load_session[/bold blue]   List and load a previous session as context
@@ -391,7 +391,7 @@ def run(with_memory=True):
         print_error("No models found in Ollama. Please add a model using `ollama pull <model_name>` and then restart.", title="Ollama Model Error")
         return
 
-    # console.print("[bold green]Welcome to CodeZ CLI. Type '/endit' to end session.[/bold green]")
+    # console.print("[bold green]Welcome to CodeZ CLI. Type 'exit' or 'bye' to end session.[/bold green]")
     print_welcome()
     ensure_session_dir()
     session = []
@@ -413,9 +413,44 @@ def run(with_memory=True):
     )
 
 
+    esc_stop = False  # Flag to indicate ESC was pressed to stop all processing
+    model_thread = None  # Track the model generation thread
+    model_stop_event = None  # Event to signal thread cancellation
     while True:
-        with patch_stdout():
-            query = prompt_session.prompt(">> ", multiline=False, enable_history_search=True)
+        try:
+            with patch_stdout():
+                query = prompt_session.prompt(
+                    ">> ",
+                    multiline=False,
+                    enable_history_search=True,
+                    key_bindings=None
+                )
+        except KeyboardInterrupt:
+            # CTRL+C pressed: trigger end/quit command
+            console.print("[yellow]Session ended by CTRL+C. Saving context...[/yellow]")
+            ensure_session_dir()
+            with open(session_file, "w") as f:
+                json.dump(session, f, indent=2)
+            break
+        except EOFError:
+            # ESC pressed: stop all processing, clear session state, and return to prompt
+            esc_stop = True
+            console.print("[cyan]ESC pressed. Stopping all processing and clearing session state. Ready for next command.[/cyan]")
+            # Optionally clear session memory/context if desired:
+            prev_context = []
+            last_thinking = None
+            # If a model thread is running, signal it to stop and join
+            if model_thread is not None and model_thread.is_alive():
+                if model_stop_event is not None:
+                    model_stop_event.set()
+                model_thread.join(timeout=2)
+                model_thread = None
+                model_stop_event = None
+            continue
+        if esc_stop:
+            # If ESC was pressed, skip any further processing and reset flag
+            esc_stop = False
+            continue
         # Detect code block start for multiline input
         if query.strip() == '```':
             # Call the improved multiline_code_input which expects ``` to start and end
@@ -499,7 +534,7 @@ def run(with_memory=True):
                 continue
             # Only split for other tool commands if not /read
             cmd = shlex.split(query.strip())
-            if cmd[0] == "/helpme" or "/?":
+            if cmd[0] in ("/helpme", "/?"):
                 console.print(Panel(HELP_TEXT, title="[bold cyan]Help & Commands[/bold cyan]", border_style="cyan", expand=False))
                 continue
             if cmd[0] == "/tips":
@@ -589,7 +624,7 @@ def run(with_memory=True):
             continue
         if not query.strip():
             continue
-        if query.strip().lower() in ["exit", "quit", "/endit"]:
+        if query.strip().lower() in ["exit", "bye"]:
             console.print("[yellow]Session ended. Saving context...[/yellow]")
             ensure_session_dir()
             with open(session_file, "w") as f:
@@ -717,21 +752,31 @@ def run(with_memory=True):
         stage_idx = 0
         last_stage_update_time = time.time()
 
+        import threading
         with console.status(stages[stage_idx], spinner="dots8") as status: # Using a different spinner
             done = False
             response = None
-            def run_model():
+            model_stop_event = threading.Event()  # Event to signal thread cancellation
+            def run_model_with_stop():
                 nonlocal response, done
                 try:
-                    response = model.query_ollama(full_prompt, selected_model)
+                    # Pass stop_event to model.query_ollama if supported, else check in a loop
+                    # Here, we simulate cooperative cancellation by checking the event periodically
+                    # If model.query_ollama supports a stop_event, pass it; else, wrap in a loop
+                    # For now, we assume model.query_ollama does NOT support stop_event, so we use a workaround
+                    # (If model.query_ollama is blocking, true cancellation may require more invasive changes)
+                    # This is a best-effort approach
+                    def query_with_cancel():
+                        # If model.query_ollama is long-running and blocking, this won't interrupt it
+                        # If it supports a stop_event, pass it here
+                        return model.query_ollama(full_prompt, selected_model)
+                    response = query_with_cancel()
                 except Exception as e:
-                    # Capture exception to be handled in the main thread
                     response = e
                 finally:
                     done = True
-            import threading
-            t = threading.Thread(target=run_model)
-            t.start()
+            model_thread = threading.Thread(target=run_model_with_stop)
+            model_thread.start()
             while not done:
                 current_time = time.time()
                 # Cycle through stages every 2.5 seconds
@@ -739,15 +784,24 @@ def run(with_memory=True):
                     stage_idx = (stage_idx + 1) % len(stages)
                     status.update(stages[stage_idx])
                     last_stage_update_time = current_time
+                # If ESC was pressed, signal the thread to stop
+                if esc_stop:
+                    if model_stop_event is not None:
+                        model_stop_event.set()
+                    break
                 time.sleep(0.1) # Short sleep to keep loop responsive
-            t.join()
-
+            # Wait for thread to finish (or timeout if cancelled)
+            if model_thread.is_alive():
+                model_thread.join(timeout=2)
+            model_thread = None
+            # If cancelled, skip further processing
+            if esc_stop:
+                esc_stop = False
+                continue
             if isinstance(response, Exception):
                 print_error(f"Ollama model query failed: {response}\nPlease ensure Ollama is running and the model (`{selected_model}`) is available.", title="Ollama Query Error")
                 session.append({"user": query, "response": f"Error: {response}"})
-                # Not adding to session_agent.memory here as it expects successful model response string
                 continue # Skip response processing and restart loop
-
             status.update("[bold cyan]Querying model... 100%")
             last_thinking = summarize_response(response) # response here is str
 
